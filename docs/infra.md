@@ -168,7 +168,8 @@ services:
     image: timescale/timescaledb-ha:pg16
     environment: { POSTGRES_DB: dockcast_test, POSTGRES_USER: postgres, POSTGRES_PASSWORD: dockcast, TZ: UTC }
     ports: ["5433:5432"]
-    tmpfs: [/home/postgres/pgdata/data]
+    # no volume: data lives in the container layer and is discarded with the container (a tmpfs mount is
+    # created root-owned and the image's non-root entrypoint cannot chown it — see WP-0 report)
     healthcheck: { test: ["CMD-SHELL", "pg_isready -U postgres"], interval: 5s, timeout: 3s, retries: 20 }
 volumes:
   devdb: {}
