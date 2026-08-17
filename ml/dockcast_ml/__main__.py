@@ -1,15 +1,23 @@
 """CLI entry point for dockcast_ml (docs/worker-spec.md §1.3).
 
-WP-0 stub: parses the documented sub-commands and their arguments, then
-reports "not implemented" and exits with code 2. Real command handlers land
-in WP-4 (bootstrap, neighbors), WP-5 (predict, profile), and WP-6
-(train, labels, metrics).
+`bootstrap` and `neighbors` are wired to their real implementations (WP-4).
+`predict`, `train`, `profile`, `labels`, `metrics` remain "not implemented"
+stubs (exit 2) until WP-5/WP-6.
 """
 
 from __future__ import annotations
 
 import argparse
+import logging
 import sys
+from datetime import date
+from pathlib import Path
+from typing import Any
+
+from dockcast_ml import config, db, logging_setup, neighbors
+from dockcast_ml.bootstrap.run import run_bootstrap
+
+logger = logging.getLogger("dockcast_ml")
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -46,10 +54,56 @@ def build_parser() -> argparse.ArgumentParser:
     metrics.add_argument("--city", metavar="SLUG")
     metrics.add_argument("--date", metavar="YYYY-MM-DD")
 
-    neighbors = subparsers.add_parser("neighbors")
-    neighbors.add_argument("--city", metavar="SLUG")
+    neighbors_parser = subparsers.add_parser("neighbors")
+    neighbors_parser.add_argument("--city", metavar="SLUG")
 
     return parser
+
+
+def _parse_yyyymm(s: str) -> date:
+    year, month = s.split("-")
+    return date(int(year), int(month), 1)
+
+
+def _load_city(conn: Any, slug: str) -> dict[str, Any]:
+    frame = db.fetch_df(conn, "SELECT * FROM cities WHERE slug=%(s)s", {"s": slug})
+    if frame.empty:
+        raise RuntimeError(f"unknown city slug: {slug}")
+    return frame.iloc[0].to_dict()  # type: ignore[no-any-return]
+
+
+def _cities_for(conn: Any, slug: str | None) -> list[dict[str, Any]]:
+    if slug:
+        return [_load_city(conn, slug)]
+    frame = db.fetch_df(conn, "SELECT * FROM cities WHERE forecasting_enabled", None)
+    return frame.to_dict("records")  # type: ignore[no-any-return]
+
+
+def _cmd_bootstrap(cfg: config.Config, args: argparse.Namespace) -> int:
+    conn = db.connect(cfg, autocommit=True)
+    try:
+        city = _load_city(conn, args.city)
+        month_from = _parse_yyyymm(args.from_)
+        month_to = _parse_yyyymm(args.to)
+        cache_dir = Path(args.cache_dir) if args.cache_dir else cfg.trips_cache_dir
+        summary = run_bootstrap(
+            cfg, conn, city, month_from, month_to, cache_dir, skip_download=args.skip_download
+        )
+        logger.info("bootstrap complete", extra={"summary": summary})
+        return 0
+    finally:
+        conn.close()
+
+
+def _cmd_neighbors(cfg: config.Config, args: argparse.Namespace) -> int:
+    conn = db.connect(cfg, autocommit=True)
+    try:
+        for city in _cities_for(conn, args.city):
+            with db.worker_run(cfg, "neighbors", city["id"]) as summary:
+                summary.update(neighbors.rebuild(conn, city["id"]))
+        return 0
+    finally:
+        conn.close()
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -62,8 +116,20 @@ def main(argv: list[str] | None = None) -> int:
         if args.t0 is not None and not args.once:
             parser.error("--t0 is only valid with --once")
 
-    print(f"dockcast_ml {args.command}: not implemented", file=sys.stderr)
-    return 2
+    if args.command not in ("bootstrap", "neighbors"):
+        print(f"dockcast_ml {args.command}: not implemented", file=sys.stderr)
+        return 2
+
+    cfg = config.load()
+    logging_setup.setup(cfg.log_level)
+
+    try:
+        if args.command == "bootstrap":
+            return _cmd_bootstrap(cfg, args)
+        return _cmd_neighbors(cfg, args)
+    except Exception as exc:
+        logger.error("command failed", extra={"error": str(exc), "command": args.command})
+        return 1
 
 
 if __name__ == "__main__":
