@@ -37,7 +37,7 @@ Constants (shared): `HORIZONS = [15,30,45,60,90,120]`; `MAX_LEAD = 120`; `MIN_LE
 
 `lookup(station_pk, target ∈ {bike,dock}, at: Date, now: Date)`:
 1. `lead = (at − now)` in minutes (fractional ok).
-2. If `lead > MAX_LEAD` → `{kind:'typical', p: station_tod_profile.p_<target> for (today's day_type in city tz, bucket of at), tier:null}`; if no profile row → `{kind:'unavailable'}`.
+2. If `lead > MAX_LEAD` → `{kind:'typical', p: station_tod_profile.p_<target> for (day_type of `at`'s local date in the city tz — not of `now` — and the 15-min bucket of `at`), tier:null}`; if no profile row → `{kind:'unavailable'}`.
 3. Else `lead' = clamp(lead, MIN_LEAD, MAX_LEAD)`; take `forecasts_latest` rows for the station; if `p_<target>` is null → `{kind:'unavailable', reason}`. If `lead'` equals a horizon → that row's `p`. Otherwise linear interpolation in `p` between the two bracketing horizons `h_lo < lead' < h_hi`: `p = p_lo + (p_hi − p_lo)·(lead' − h_lo)/(h_hi − h_lo)`; same for `exp_bikes`. `kind:'forecast'`, `tier` from the row.
 4. Also return `current = {bikes, docks, as_of, is_fresh}` from `station_state_fresh`.
 Implemented once in `apps/api/src/forecast/lookup.ts`, unit-tested (T18 in ml-spec).
