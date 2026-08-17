@@ -1,0 +1,171 @@
+@import 'tailwindcss';
+@import './tokens.css';
+
+/* Self-hosted variable fonts (no CDN requests). ui-spec.md §1, §2.3. */
+@import '@fontsource-variable/bricolage-grotesque/wght.css';
+@import '@fontsource-variable/instrument-sans/wght.css';
+
+/* Map design tokens onto Tailwind v4's CSS-first theme so utility classes
+   (bg-surface, text-ink, etc.) resolve to the token custom properties. */
+@theme {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-rule: var(--rule);
+  --color-rule-strong: var(--rule-strong);
+  --color-signal: var(--signal);
+  --color-signal-ink: var(--signal-ink);
+  --color-signal-wash: var(--signal-wash);
+  --color-focus: var(--focus);
+
+  --color-st-good: var(--st-good);
+  --color-st-warn: var(--st-warn);
+  --color-st-serious: var(--st-serious);
+  --color-st-critical: var(--st-critical);
+
+  --color-p0: var(--p0);
+  --color-p1: var(--p1);
+  --color-p2: var(--p2);
+  --color-p3: var(--p3);
+  --color-p4: var(--p4);
+  --color-p-none: var(--p-none);
+
+  --font-display: var(--font-display);
+  --font-ui: var(--font-ui);
+
+  --text-xs: var(--fs-xs);
+  --text-sm: var(--fs-sm);
+  --text-md: var(--fs-md);
+  --text-lg: var(--fs-lg);
+  --text-xl: var(--fs-xl);
+  --text-2xl: var(--fs-2xl);
+  --text-hero: var(--fs-hero);
+
+  --spacing-1: var(--sp-1);
+  --spacing-2: var(--sp-2);
+  --spacing-3: var(--sp-3);
+  --spacing-4: var(--sp-4);
+  --spacing-5: var(--sp-5);
+  --spacing-6: var(--sp-6);
+  --spacing-7: var(--sp-7);
+  --spacing-8: var(--sp-8);
+
+  --radius-1: var(--r-1);
+  --radius-2: var(--r-2);
+  --radius-pill: var(--r-pill);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: var(--fs-md);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.15;
+  margin: 0;
+}
+
+p {
+  margin: 0;
+}
+
+img,
+svg {
+  display: block;
+  max-width: 100%;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+a {
+  color: inherit;
+}
+
+table {
+  font-variant-numeric: tabular-nums;
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 100;
+  background: var(--surface);
+  color: var(--ink);
+  padding: var(--sp-2) var(--sp-4);
+  border-radius: 0 0 var(--r-1) 0;
+  border: 1px solid var(--rule-strong);
+}
+
+.skip-link:focus {
+  left: 0;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Status wash backgrounds (ui-spec.md §2.2 "wash rule"): the one place a
+   coloured background/edge is allowed, because it *is* the status. */
+.wash-good {
+  background: color-mix(in oklab, var(--st-good) 14%, var(--surface));
+  border: 1px solid var(--st-good);
+}
+.wash-warn {
+  background: color-mix(in oklab, var(--st-warn) 14%, var(--surface));
+  border: 1px solid var(--st-warn);
+}
+.wash-serious {
+  background: color-mix(in oklab, var(--st-serious) 14%, var(--surface));
+  border: 1px solid var(--st-serious);
+}
+.wash-critical {
+  background: color-mix(in oklab, var(--st-critical) 14%, var(--surface));
+  border: 1px solid var(--st-critical);
+}

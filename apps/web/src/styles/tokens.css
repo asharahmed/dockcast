@@ -1,0 +1,163 @@
+/**
+ * DockCast design tokens — the only place hex values live (ui-spec.md §2).
+ * Light values on :root; dark values under BOTH the system preference (guarded
+ * so an explicit 'light' choice always wins) and the explicit data-theme
+ * attribute (so the toggle wins in both directions). See ui-spec.md §2.1.
+ */
+
+:root {
+  color-scheme: light dark;
+
+  /* Neutrals (warm-tinted paper) */
+  --bg: #f7f5f0;
+  --surface: #fdfcfa;
+  --surface-2: #f0ede6;
+  --ink: #17171a;
+  --ink-2: #55544f;
+  --ink-3: #8a8880;
+  --rule: #e3e0d8;
+  --rule-strong: #c5c2b8;
+
+  /* Signal ink (brand) */
+  --signal: #1c4f8f;
+  --signal-ink: #fdfcfa;
+  --signal-wash: #e4edf9;
+  --focus: #1c4f8f;
+  --overlay: rgba(23, 23, 26, 0.32);
+
+  /* Status (fixed both modes; only the text-on-light variant swaps) */
+  --st-good: #0ca30c;
+  --st-good-text: #006300;
+  --st-warn: #fab219;
+  --st-serious: #ec835a;
+  --st-critical: #d03b3b;
+  --st-critical-text: #a12727;
+
+  /* Probability ordinal ramp (map circles, ProbBadge) */
+  --p0: #86b6ef;
+  --p1: #5598e7;
+  --p2: #2a78d6;
+  --p3: #1c5cab;
+  --p4: #104281;
+  --p-none: #8a8880;
+  --map-ring: #fdfcfa;
+
+  /* Chart series (fixed slot assignment — never re-ordered) */
+  --s1: #2a78d6;
+  --s2: #eb6834;
+  --s3: #1baf7a;
+  --s1-lite: #86b6ef;
+  --band: color-mix(in oklab, var(--s2) 18%, transparent);
+  --ref: var(--ink-3);
+
+  /* Typography */
+  --font-display:
+    'Bricolage Grotesque Variable', 'Instrument Sans Variable', ui-sans-serif, sans-serif;
+  --font-ui: 'Instrument Sans Variable', ui-sans-serif, system-ui, sans-serif;
+  --fs-xs: 0.75rem;
+  --fs-sm: 0.875rem;
+  --fs-md: 1rem;
+  --fs-lg: 1.125rem;
+  --fs-xl: clamp(1.375rem, 1.1rem + 1vw, 1.75rem);
+  --fs-2xl: clamp(1.75rem, 1.2rem + 2vw, 2.5rem);
+  --fs-hero: clamp(2.75rem, 2rem + 4vw, 4.5rem);
+
+  /* Space */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 24px;
+  --sp-6: 32px;
+  --sp-7: 48px;
+  --sp-8: 64px;
+  --gutter: clamp(16px, 4vw, 40px);
+
+  /* Shape */
+  --r-1: 4px;
+  --r-2: 8px;
+  --r-pill: 999px;
+
+  /* Elevation */
+  --shadow-panel: 0 1px 0 var(--rule), 0 8px 24px -12px rgba(23, 23, 26, 0.25);
+
+  /* Motion */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --dur-state: 120ms;
+  --dur-panel: 200ms;
+  --dur-page: 320ms;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --bg: #141412;
+    --surface: #1c1c1a;
+    --surface-2: #262624;
+    --ink: #f4f2ec;
+    --ink-2: #c6c4ba;
+    --ink-3: #8a8880;
+    --rule: #2e2e2b;
+    --rule-strong: #3c3c38;
+
+    --signal: #6ea6ea;
+    --signal-ink: #141412;
+    --signal-wash: #1d2c42;
+    --focus: #6ea6ea;
+    --overlay: rgba(0, 0, 0, 0.55);
+
+    --st-good-text: #0ca30c;
+    --st-critical-text: #e66767;
+
+    --p0: #9ec5f4;
+    --p1: #6da7ec;
+    --p2: #3987e5;
+    --p3: #256abf;
+    --p4: #184f95;
+    --map-ring: #141412;
+
+    --s1: #3987e5;
+    --s2: #d95926;
+    --s3: #199e70;
+    --s1-lite: #6da7ec;
+  }
+}
+
+:root[data-theme='dark'] {
+  --bg: #141412;
+  --surface: #1c1c1a;
+  --surface-2: #262624;
+  --ink: #f4f2ec;
+  --ink-2: #c6c4ba;
+  --ink-3: #8a8880;
+  --rule: #2e2e2b;
+  --rule-strong: #3c3c38;
+
+  --signal: #6ea6ea;
+  --signal-ink: #141412;
+  --signal-wash: #1d2c42;
+  --focus: #6ea6ea;
+  --overlay: rgba(0, 0, 0, 0.55);
+
+  --st-good-text: #0ca30c;
+  --st-critical-text: #e66767;
+
+  --p0: #9ec5f4;
+  --p1: #6da7ec;
+  --p2: #3987e5;
+  --p3: #256abf;
+  --p4: #184f95;
+  --map-ring: #141412;
+
+  --s1: #3987e5;
+  --s2: #d95926;
+  --s3: #199e70;
+  --s1-lite: #6da7ec;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-state: 0ms;
+    --dur-panel: 0ms;
+    --dur-page: 0ms;
+  }
+}
