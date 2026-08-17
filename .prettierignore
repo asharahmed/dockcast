@@ -1,0 +1,11 @@
+node_modules
+dist
+coverage
+.venv
+ml/.venv
+ml/.cache
+pnpm-lock.yaml
+*.lock
+fixtures
+docs
+db/migrations

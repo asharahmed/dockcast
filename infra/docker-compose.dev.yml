@@ -1,0 +1,16 @@
+name: dockcast-dev
+services:
+  db:
+    image: timescale/timescaledb-ha:pg16
+    environment: { POSTGRES_DB: dockcast, POSTGRES_USER: postgres, POSTGRES_PASSWORD: dockcast, TZ: UTC }
+    ports: ["5432:5432"]
+    volumes: [devdb:/home/postgres/pgdata/data]
+    healthcheck: { test: ["CMD-SHELL", "pg_isready -U postgres"], interval: 5s, timeout: 3s, retries: 20 }
+  db-test:
+    image: timescale/timescaledb-ha:pg16
+    environment: { POSTGRES_DB: dockcast_test, POSTGRES_USER: postgres, POSTGRES_PASSWORD: dockcast, TZ: UTC }
+    ports: ["5433:5432"]
+    tmpfs: [/home/postgres/pgdata/data]
+    healthcheck: { test: ["CMD-SHELL", "pg_isready -U postgres"], interval: 5s, timeout: 3s, retries: 20 }
+volumes:
+  devdb: {}

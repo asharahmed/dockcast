@@ -1,0 +1,48 @@
+name: ci
+on:
+  pull_request:
+  push: { branches: [main] }
+concurrency: { group: ci-${{ github.ref }}, cancel-in-progress: true }
+jobs:
+  node:
+    runs-on: ubuntu-24.04
+    services:
+      db:
+        image: timescale/timescaledb-ha:pg16
+        env: { POSTGRES_DB: dockcast_test, POSTGRES_USER: postgres, POSTGRES_PASSWORD: dockcast }
+        ports: ["5433:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 3s --health-retries 20
+    env:
+      DATABASE_URL_TEST: postgres://postgres:dockcast@localhost:5433/dockcast_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: 9 }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm -r lint
+      - run: pnpm -r typecheck
+      - run: pnpm -r build
+      - run: pnpm -r test            # vitest; DB tests run because DATABASE_URL_TEST is set
+  python:
+    runs-on: ubuntu-24.04
+    services:
+      db:
+        image: timescale/timescaledb-ha:pg16
+        env: { POSTGRES_DB: dockcast_test, POSTGRES_USER: postgres, POSTGRES_PASSWORD: dockcast }
+        ports: ["5433:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 3s --health-retries 20
+    env:
+      DATABASE_URL_TEST: postgres://postgres:dockcast@localhost:5433/dockcast_test
+    defaults: { run: { working-directory: ml } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with: { enable-cache: true }
+      - run: uv python install 3.12
+      - run: uv sync --frozen
+      - run: uv run ruff check .
+      - run: uv run pytest -q
