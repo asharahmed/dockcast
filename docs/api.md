@@ -181,7 +181,7 @@ For each active city with `forecasting_enabled`:
    and no `alert_events` row for `(commute_id, today_date)`.
 3. For each: `depart_at = today_date + depart_local_time` (city tz → UTC); run the trip logic (§0.1) with `now`.
 4. If `origin.kind='forecast' AND origin.p < threshold` → `origin_low`; same for `dest_low`; both → `both_low`. If neither condition holds, nothing is sent and nothing is written (the unique `(commute_id, local_date)` constraint only guards duplicate sends; the same minute cannot match again on a later tick). Legs with `kind ≠ 'forecast'` never trigger.
-5. Compose body, e.g. `"Only 41% chance of a dock at Bay / Wellesley at 8:40. Best nearby: Yonge / Wellesley (2 min walk, 93%)."`; `url = /trip?origin=&dest=&depart_at=`; `tag = commute.id`.
+5. Compose body, e.g. `"Only 41% chance of a dock at Bay / Wellesley at 8:40. Best nearby: Yonge / Wellesley (2 min walk, 93%)."`; `url = /trip?from=<origin id>&to=<dest id>&at=<depart_at ISO>&ride=<ride_minutes>` (the SPA route's params, ui-spec §4.3 — not the API's `origin/dest/depart_at` query names); `tag = commute.id`.
 6. Send to every subscription of the user; on 404/410 delete the subscription; on other errors `failed_count += 1` and delete when `≥ 5`. Insert `alert_events` with `delivered` count.
 7. Log one line per tick with counts.
 
