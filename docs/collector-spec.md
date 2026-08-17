@@ -43,7 +43,7 @@ Fixtures used by tests live in `/fixtures/gbfs/*.json` and `/fixtures/weather/*.
 
 `@dockcast/db` contract this package relies on (implemented in `packages/db`):
 - `createPool(databaseUrl: string): pg.Pool` — sets type parsers (`int8`→number, `numeric`→number, `timestamptz`→`Date`), `application_name='dockcast-collector'`, `max: 5`.
-- `assertMigrationsCurrent(pool, migrationsDir): Promise<void>` — throws if any file in `db/migrations/*.sql` is not present in `schema_migrations(version int PK, name text, applied_at timestamptz)`. The migrator (run by `api` on boot and by `pnpm db:migrate`) creates `schema_migrations` itself; migration file version = leading integer of the filename (`0001_init.sql` → 1).
+- `waitForSchema(pool, migrationsDir?, { timeoutMs = 300_000, intervalMs = 2_000 }): Promise<void>` — resolves once every file in `db/migrations/*.sql` is present in `schema_migrations(version int PK, name text, checksum text, applied_at timestamptz)`; throws after the timeout (the collector then exits 1 and compose restarts it). The migrator (run by `api` on boot and by `pnpm db:migrate`) creates `schema_migrations` itself; migration file version = leading integer of the filename (`0001_init.sql` → 1).
 - Docker images for the collector and workers COPY `db/migrations` so the check can run (see infra.md).
 
 ---------------------------------------------------------------------------
@@ -191,7 +191,7 @@ Volume: 2 req/h/city — far under Open-Meteo's free non-commercial limit (10 00
 
 ## 6. Scheduler (`src/scheduler.ts`)
 
-`startInterval(name, intervalMs, fn)`: runs `fn()` immediately, then on `setInterval`; keeps a `running` flag so a slow run causes the next tick to be skipped (logged); returns `{ stop(): Promise<void> }` which clears the timer and awaits an in-flight run. Boot order: config → pool → `assertMigrationsCurrent` → load cities (`SELECT … FROM cities WHERE is_active [AND slug = ANY($1)]`) → for each city: information sync (await) → start status + weather intervals. `SIGTERM/SIGINT` → stop all intervals (await in-flight cycles, max 30 s) → `pool.end()` → exit 0. Uncaught errors in a cycle never escape the scheduler.
+`startInterval(name, intervalMs, fn)`: runs `fn()` immediately, then on `setInterval`; keeps a `running` flag so a slow run causes the next tick to be skipped (logged); returns `{ stop(): Promise<void> }` which clears the timer and awaits an in-flight run. Boot order: config → pool → `waitForSchema` → load cities (`SELECT … FROM cities WHERE is_active [AND slug = ANY($1)]`) → for each city: information sync (await) → start status + weather intervals. `SIGTERM/SIGINT` → stop all intervals (await in-flight cycles, max 30 s) → `pool.end()` → exit 0. Uncaught errors in a cycle never escape the scheduler.
 
 ---------------------------------------------------------------------------
 

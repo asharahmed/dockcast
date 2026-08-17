@@ -144,7 +144,7 @@ volumes:
 
 ### 1.1 Migrations & the wait loop
 - `api` runs `@dockcast/db` migrator on boot (`db/migrations/*.sql` in filename order, each file in one transaction, recorded in `schema_migrations(version, name, applied_at)`; already-applied versions are skipped; a version whose file content hash changed after being applied → fatal error at boot).
-- `collector`, `worker-predict`, `worker-train` (and every `python -m dockcast_ml <cmd>`) call `assertMigrationsCurrent`/`wait_for_schema` at boot: retry every 5 s for up to 5 min until every file in `MIGRATIONS_DIR` is present in `schema_migrations`; then proceed; after 5 min → log and exit 1 (compose restarts it). Images therefore COPY `db/migrations` to `/app/db/migrations`.
+- `collector`, `worker-predict`, `worker-train` (and every `python -m dockcast_ml <cmd>`) call `waitForSchema` (Node) / `wait_for_schema` (Python) at boot: retry every 5 s for up to 5 min until every file in `MIGRATIONS_DIR` is present in `schema_migrations`; then proceed; after 5 min → log and exit 1 (compose restarts it). Images therefore COPY `db/migrations` to `/app/db/migrations`.
 - Manual: `docker compose run --rm api node dist/migrate.js` (api image ships a `migrate.js` entry that runs migrations and exits).
 
 ### 1.2 Sizing (Hetzner CX22: 2 vCPU / 4 GB / 40 GB)
