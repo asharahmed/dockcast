@@ -5,20 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>DockCast</title>
-    <script>
-      (function () {
-        try {
-          var theme = localStorage.getItem('dockcast.theme');
-          if (theme === 'light' || theme === 'dark') {
-            document.documentElement.dataset.theme = theme;
-          } else {
-            delete document.documentElement.dataset.theme;
-          }
-        } catch (e) {
-          /* localStorage unavailable (private mode); fall back to system theme */
-        }
-      })();
-    </script>
+    <!-- ui-spec.md §2.1 originally called for a pre-paint inline <script> here to apply a
+         saved theme before first paint. The api's CSP (`script-src 'self'`, no
+         'unsafe-inline'/nonce) blocks inline scripts, so that bootstrap silently never ran
+         in any deployed environment and a saved preference was ignored on every fresh page
+         load. The equivalent logic now runs synchronously at the top of src/main.tsx
+         instead (CSP-safe); it no longer prevents the first-paint flash, but the theme
+         preference itself is honoured again. See WP-12 final report. -->
   </head>
   <body>
     <div id="root"></div>

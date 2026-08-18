@@ -139,6 +139,7 @@ def _cmd_predict(cfg: config.Config, args: argparse.Namespace) -> int:
             state = states.setdefault(city_id, predict.PredictState())
             with db.worker_run(cfg, "predict", city_id) as summary:
                 summary.update(predict.predict_once(cfg, conn, city, t0, state))
+        conn.commit()
         return 0
     finally:
         conn.close()
@@ -163,6 +164,7 @@ def _cmd_profile(cfg: config.Config, args: argparse.Namespace) -> int:
                 profile_mod.write_table(conn, city_id, frame)
                 summary["n_rows"] = len(frame)
                 summary["built_for"] = target_date.isoformat()
+        conn.commit()
         return 0
     finally:
         conn.close()
@@ -178,6 +180,7 @@ def _cmd_train(cfg: config.Config, args: argparse.Namespace) -> int:
             now = datetime.now(UTC)
             with db.worker_run(cfg, "train", city_id) as summary:
                 summary.update(train.train_city(cfg, conn, city, target_date, now))
+        conn.commit()
         return 0
     finally:
         conn.close()
@@ -190,6 +193,7 @@ def _cmd_labels(cfg: config.Config, args: argparse.Namespace) -> int:
             city_id = city["id"]
             with db.worker_run(cfg, "labels", city_id) as summary:
                 summary.update(labels_mod.materialise_labels(conn, city, datetime.now(UTC)))
+        conn.commit()
         return 0
     finally:
         conn.close()
@@ -204,6 +208,7 @@ def _cmd_metrics(cfg: config.Config, args: argparse.Namespace) -> int:
             target_date = date.fromisoformat(args.date) if args.date else datetime.now(UTC).astimezone(tz).date()
             with db.worker_run(cfg, "metrics", city_id) as summary:
                 summary.update(metrics_online.compute(conn, city, target_date))
+        conn.commit()
         return 0
     finally:
         conn.close()

@@ -127,7 +127,7 @@ export function VersionsTable({ versions, now }: VersionsTableProps) {
                       <StatusChip status={v.status} />
                     </td>
                     <td className="py-2 pr-3 tabular-nums">
-                      {v.metrics_val
+                      {v.metrics_val?.brier
                         ? `${v.metrics_val.brier.bike.toFixed(3)} / ${v.metrics_val.brier.dock.toFixed(3)}`
                         : '—'}
                     </td>

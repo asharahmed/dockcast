@@ -402,7 +402,7 @@ def train_city(cfg: Config, conn: psycopg.Connection, city: dict[str, Any], T: d
     if len(data_days) < _MIN_LOCAL_DAYS:
         gbm_id = _write_model_version(
             conn, city_id, "gbm", "insufficient_data", T, None, FEATURE_SCHEMA_VERSION, cfg.git_sha,
-            None, {"n_days": len(data_days)}, None, None,
+            {"n_days": len(data_days)}, None, None, None,
         )
         summary["gbm_id"] = gbm_id
         summary["gbm_status"] = "insufficient_data"
@@ -505,8 +505,8 @@ def train_city(cfg: Config, conn: psycopg.Connection, city: dict[str, Any], T: d
         if n_train == 0 or n_es == 0 or n_val == 0:
             gbm_id = _write_model_version(
                 conn, city_id, "gbm", "insufficient_data", T, None, FEATURE_SCHEMA_VERSION, cfg.git_sha,
-                None, {"n_days": len(data_days), "n_train_rows": n_train, "n_es_rows": n_es, "n_val_rows": n_val},
-                None, None,
+                {"n_days": len(data_days), "n_train_rows": n_train, "n_es_rows": n_es, "n_val_rows": n_val},
+                None, None, None,
             )
             summary["gbm_id"] = gbm_id
             summary["gbm_status"] = "insufficient_data"

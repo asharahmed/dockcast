@@ -46,6 +46,7 @@ export function CityMap({
 }: CityMapProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
+  const styleUrlRef = useRef<string | null>(null);
   const [ready, setReady] = useState(false);
   const [themePref] = useTheme();
   const prefersDark = useMediaQuery('(prefers-color-scheme: dark)');
@@ -76,6 +77,7 @@ export function CityMap({
       setReady(true);
     });
     mapRef.current = map;
+    styleUrlRef.current = isDark ? STYLE_URL.dark : STYLE_URL.light;
 
     return () => {
       map.remove();
@@ -85,12 +87,21 @@ export function CityMap({
   }, []);
 
   // Swap the basemap style on theme change; re-adds sources/layers via StationLayer's own 'style.load' listener.
+  // `styleUrlRef` tracks the style currently applied so the initial mount (already on the right style)
+  // is a no-op, and a toggle that lands while a style is still loading is applied once it finishes.
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !map.isStyleLoaded()) return;
-    setReady(false);
-    map.setStyle(isDark ? STYLE_URL.dark : STYLE_URL.light);
-    map.once('style.load', () => setReady(true));
+    if (!map) return;
+    const target = isDark ? STYLE_URL.dark : STYLE_URL.light;
+    if (styleUrlRef.current === target) return;
+    const apply = (): void => {
+      styleUrlRef.current = target;
+      setReady(false);
+      map.setStyle(target);
+      map.once('style.load', () => setReady(true));
+    };
+    if (map.isStyleLoaded()) apply();
+    else map.once('style.load', apply);
   }, [isDark]);
 
   useEffect(() => {
@@ -135,7 +146,13 @@ export function CityMap({
   // hosts React-rendered UI (StationLayer's hover tooltip) positioned above it.
   return (
     <div className="relative h-full w-full">
-      <div ref={containerRef} className="absolute inset-0" />
+      {/* `!absolute`: maplibre-gl.css sets `.maplibregl-map { position: relative }` on this
+          element (MapLibre appends that class itself); because maplibre-gl.css is imported
+          inside this lazy-loaded route chunk, it lands after Tailwind's utilities in the
+          bundled CSS and wins the position cascade tie, collapsing this div (and the map) to
+          zero height. The important modifier forces Tailwind's `absolute` to win regardless of
+          import order. See WP-12 final report. */}
+      <div ref={containerRef} className="!absolute inset-0" />
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
         <MapContext.Provider value={{ map: ready ? mapRef.current : null }}>
           {ready && children}

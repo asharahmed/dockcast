@@ -45,7 +45,22 @@ export function createApp(deps: AppDeps): Express {
       genReqId: (req) => req.id,
     }),
   );
-  app.use(helmet());
+  // Defaults restrict connect-src/img-src/worker-src to 'self', which blocks MapLibre's
+  // fetches to the OpenFreeMap basemap (tiles.openfreemap.org: style JSON, vector tiles,
+  // sprites, glyphs) and its web worker; ui-spec.md explicitly allows these as the only
+  // non-API external requests. See WP-12 final report.
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        directives: {
+          ...helmet.contentSecurityPolicy.getDefaultDirectives(),
+          'connect-src': ["'self'", 'https://tiles.openfreemap.org'],
+          'img-src': ["'self'", 'data:', 'https://tiles.openfreemap.org'],
+          'worker-src': ["'self'", 'blob:'],
+        },
+      },
+    }),
+  );
   app.use(requireFetchHeader);
   app.use(express.json());
   app.use(createSessionMiddleware(deps.pool, deps.config));

@@ -493,8 +493,8 @@ export const modelResponseFixture: ModelResponse = {
 export const modelVersionDetailResponseFixture: ModelVersionDetailResponse = {
   version: modelVersionActiveGbmFixture,
   eval: [
-    { split: 'val', target: 'bike', horizon: 0, slice: 'all', metric: 'brier', value: 0.07 },
-    { split: 'val', target: 'dock', horizon: 0, slice: 'all', metric: 'brier', value: 0.09 },
+    { tier: 'gbm', split: 'val', target: 'bike', horizon: 0, slice: 'all', metric: 'brier', value: 0.07 },
+    { tier: 'gbm', split: 'val', target: 'dock', horizon: 0, slice: 'all', metric: 'brier', value: 0.09 },
   ],
 };
 

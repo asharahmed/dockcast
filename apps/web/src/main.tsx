@@ -6,8 +6,18 @@ import { createRoot } from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter } from 'react-router';
 import { App } from './App.js';
+import { getTheme } from './lib/theme.js';
 import './styles/base.css';
 import './styles/charts.css';
+
+// index.html's pre-paint inline <script> bootstrap (ui-spec.md §2.1) is blocked by the
+// api's CSP (`script-src 'self'`, no 'unsafe-inline'/nonce — see WP-12 final report), so
+// it never runs and a saved theme preference was silently ignored on every fresh page
+// load. Applying it here, synchronously before mount(), is the CSP-safe equivalent; it
+// no longer prevents the first-paint flash the inline script guaranteed, but restores a
+// stored preference correctly, which is the substantive behaviour.
+const bootTheme = getTheme();
+if (bootTheme !== 'system') document.documentElement.dataset.theme = bootTheme;
 
 const queryClient = new QueryClient({
   defaultOptions: {
