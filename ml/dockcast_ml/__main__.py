@@ -1,8 +1,8 @@
 """CLI entry point for dockcast_ml (docs/worker-spec.md §1.3).
 
 `bootstrap` and `neighbors` are wired to their real implementations (WP-4).
-`predict`, `train`, `profile`, `labels`, `metrics` remain "not implemented"
-stubs (exit 2) until WP-5/WP-6.
+`predict` and `profile` are wired to their real implementations (WP-5).
+`train`, `labels`, `metrics` remain "not implemented" stubs (exit 2) until WP-6.
 """
 
 from __future__ import annotations
@@ -10,12 +10,16 @@ from __future__ import annotations
 import argparse
 import logging
 import sys
-from datetime import date
+from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any
 
-from dockcast_ml import config, db, logging_setup, neighbors
+import numpy as np
+
+from dockcast_ml import config, db, gbfs_ids, logging_setup, neighbors, predict
+from dockcast_ml import profile as profile_mod
 from dockcast_ml.bootstrap.run import run_bootstrap
+from dockcast_ml.timeutil import ceil_to, holiday_set, tz_of
 
 logger = logging.getLogger("dockcast_ml")
 
@@ -106,6 +110,54 @@ def _cmd_neighbors(cfg: config.Config, args: argparse.Namespace) -> int:
         conn.close()
 
 
+def _parse_t0(raw: str) -> datetime:
+    parsed = datetime.fromisoformat(raw)
+    return parsed if parsed.tzinfo is not None else parsed.replace(tzinfo=UTC)
+
+
+def _cmd_predict(cfg: config.Config, args: argparse.Namespace) -> int:
+    if args.loop:
+        predict.loop(cfg, city_slug=args.city)
+        return 0
+
+    conn = db.connect(cfg, autocommit=False)
+    try:
+        t0 = _parse_t0(args.t0) if args.t0 else ceil_to(datetime.now(UTC), cfg.predict_interval_sec)
+        states: dict[int, predict.PredictState] = {}
+        for city in _cities_for(conn, args.city):
+            city_id = city["id"]
+            state = states.setdefault(city_id, predict.PredictState())
+            with db.worker_run(cfg, "predict", city_id) as summary:
+                summary.update(predict.predict_once(cfg, conn, city, t0, state))
+        return 0
+    finally:
+        conn.close()
+
+
+def _cmd_profile(cfg: config.Config, args: argparse.Namespace) -> int:
+    conn = db.connect(cfg, autocommit=False)
+    try:
+        for city in _cities_for(conn, args.city):
+            city_id = city["id"]
+            tz = tz_of(city["tz"])
+            target_date = date.fromisoformat(args.date) if args.date else datetime.now(UTC).astimezone(tz).date()
+            with db.worker_run(cfg, "profile", city_id) as summary:
+                stations_df = gbfs_ids.load_stations(conn, city_id, active_only=True)
+                station_pks = stations_df["id"].to_numpy(dtype=np.int32)
+                hol = holiday_set(
+                    city["holiday_country"], city["holiday_subdiv"],
+                    [target_date.year - 1, target_date.year, target_date.year + 1],
+                )
+                prof = profile_mod.build_rolling_profile(conn, city_id, tz, hol, station_pks, target_date)
+                frame = prof.to_frame(target_date)
+                profile_mod.write_table(conn, city_id, frame)
+                summary["n_rows"] = len(frame)
+                summary["built_for"] = target_date.isoformat()
+        return 0
+    finally:
+        conn.close()
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
@@ -116,7 +168,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.t0 is not None and not args.once:
             parser.error("--t0 is only valid with --once")
 
-    if args.command not in ("bootstrap", "neighbors"):
+    if args.command not in ("bootstrap", "neighbors", "predict", "profile"):
         print(f"dockcast_ml {args.command}: not implemented", file=sys.stderr)
         return 2
 
@@ -126,7 +178,11 @@ def main(argv: list[str] | None = None) -> int:
     try:
         if args.command == "bootstrap":
             return _cmd_bootstrap(cfg, args)
-        return _cmd_neighbors(cfg, args)
+        if args.command == "neighbors":
+            return _cmd_neighbors(cfg, args)
+        if args.command == "predict":
+            return _cmd_predict(cfg, args)
+        return _cmd_profile(cfg, args)
     except Exception as exc:
         logger.error("command failed", extra={"error": str(exc), "command": args.command})
         return 1
