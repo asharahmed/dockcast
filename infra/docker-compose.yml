@@ -1,0 +1,159 @@
+name: dockcast
+
+x-logging: &default-logging
+  driver: json-file
+  options: { max-size: "20m", max-file: "5" }
+
+# `env_file` is normally `.env` (the real prod file at /opt/dockcast/.env,
+# resolved relative to this compose file's directory). It's routed through
+# the `ENV_FILE` var (default `.env`) so a local smoke-test stack can pass
+# `--env-file infra/.env.local-smoke` (which also sets ENV_FILE=.env.local-smoke
+# inside that file) and get the *same* file used both for compose-level
+# `${...}` interpolation below and for the vars actually injected into each
+# container — without ever touching or symlinking the real `infra/.env` used
+# by the deployed stack. See WP-11 final report.
+x-app-env: &app-env
+  env_file: ${ENV_FILE:-.env}
+  logging: *default-logging
+  restart: unless-stopped
+
+services:
+  db:
+    image: timescale/timescaledb-ha:pg16            # Postgres 16 + TimescaleDB 2.x + PostGIS 3
+    logging: *default-logging
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: dockcast
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      TZ: UTC
+    command: >
+      postgres
+      -c shared_buffers=512MB
+      -c effective_cache_size=1536MB
+      -c work_mem=16MB
+      -c maintenance_work_mem=128MB
+      -c max_connections=60
+      -c timescaledb.max_background_workers=8
+      -c log_min_duration_statement=2000
+    volumes:
+      - dbdata:/home/postgres/pgdata/data          # NOTE: timescaledb-ha PGDATA path (not /var/lib/postgresql/data)
+    shm_size: 256m
+    mem_limit: 1536m
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d dockcast"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    ports: []                                       # never published; reach via `docker compose exec db psql`
+
+  api:
+    <<: *app-env
+    build: { context: .., dockerfile: apps/api/Dockerfile }
+    image: ghcr.io/${GHCR_OWNER:-local}/dockcast-api:${IMAGE_TAG:-latest}
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      WEB_DIST_DIR: /app/web-dist
+      MIGRATIONS_DIR: /app/db/migrations
+    depends_on:
+      db: { condition: service_healthy }
+    mem_limit: 512m
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/api/v1/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+
+  collector:
+    <<: *app-env
+    build: { context: .., dockerfile: apps/collector/Dockerfile }
+    image: ghcr.io/${GHCR_OWNER:-local}/dockcast-collector:${IMAGE_TAG:-latest}
+    environment:
+      NODE_ENV: production
+      MIGRATIONS_DIR: /app/db/migrations
+    depends_on:
+      db: { condition: service_healthy }
+      api: { condition: service_started }           # api applies migrations on boot; collector waits (see §1.1)
+    mem_limit: 256m
+
+  worker-predict:
+    <<: *app-env
+    build: { context: .., dockerfile: ml/Dockerfile }
+    image: ghcr.io/${GHCR_OWNER:-local}/dockcast-worker:${IMAGE_TAG:-latest}
+    command: ["python", "-m", "dockcast_ml", "predict", "--loop"]
+    environment:
+      MIGRATIONS_DIR: /app/db/migrations
+      TZ: UTC
+      # `LOG_LEVEL` in `.env` is lowercase ("info", ...) for pino (Node).
+      # `dockcast_ml.logging_setup.setup()` passes it straight to stdlib
+      # `logging.Logger.setLevel()`, which only recognises uppercase names
+      # and raises `ValueError: Unknown level: 'info'` on boot otherwise
+      # (reproduced running `bootstrap` in the smoke test). Override to
+      # uppercase for the two Python services only. See WP-11 final report.
+      LOG_LEVEL: INFO
+    depends_on:
+      db: { condition: service_healthy }
+      # `dockcast_ml` has no wait-for-schema equivalent to the Node
+      # `waitForSchema` (deviation from infra.md's assumption — see WP-11
+      # final report); it connects to tables directly. `api` only reports
+      # healthy once its HTTP server is listening, which only happens after
+      # its own migrate() call succeeds, so waiting on health (not just
+      # "started") guarantees the schema exists before this worker queries it.
+      api: { condition: service_healthy }
+    mem_limit: 768m
+
+  worker-train:
+    <<: *app-env
+    build: { context: .., dockerfile: ml/Dockerfile }
+    image: ghcr.io/${GHCR_OWNER:-local}/dockcast-worker:${IMAGE_TAG:-latest}
+    # `-no-reap`: supercronic's PID-1 zombie-reaping loop crash-loops on this
+    # host's container runtime ("Failed to fork exec: no such file or
+    # directory" immediately on start, reproduced with a bare
+    # `docker run ... supercronic -passthrough-logs`; `-no-reap` fixes it).
+    # Our cron jobs are direct children supercronic already waits on via
+    # os/exec regardless of this flag, so nothing is lost. See WP-11 final
+    # report.
+    command: ["supercronic", "-no-reap", "-passthrough-logs", "/app/crontab"]
+    environment:
+      MIGRATIONS_DIR: /app/db/migrations
+      TZ: America/Toronto                           # supercronic schedules in the container's local time
+      TRIPS_CACHE_DIR: /data/cache
+      LOG_LEVEL: INFO                                # see worker-predict comment above
+    volumes:
+      - ./supercronic/crontab:/app/crontab:ro
+      - workercache:/data/cache                     # downloaded trip zips (bootstrap), ~250 MB
+    depends_on:
+      db: { condition: service_healthy }
+      api: { condition: service_healthy }           # see worker-predict comment above
+    mem_limit: 2048m                                # LightGBM training
+
+  caddy:
+    image: caddy:2.9-alpine
+    logging: *default-logging
+    restart: unless-stopped
+    ports: ["80:80", "443:443", "443:443/udp"]
+    environment:
+      DOMAIN: ${DOMAIN}
+      # The Caddyfile site address. Defaults to the bare `DOMAIN` (Caddy's
+      # normal automatic-HTTPS behaviour). Local smoke testing overrides this
+      # to `http://localhost` — an explicit `http://` scheme tells Caddy to
+      # serve plain HTTP on :80 and skip TLS entirely, which a bare
+      # `localhost` address would NOT do (Caddy still issues an internal
+      # HTTPS cert for the literal hostname `localhost`). See WP-11 final
+      # report and `infra/.env.example`.
+      SITE_ADDRESS: ${SITE_ADDRESS:-${DOMAIN}}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddydata:/data
+      - caddyconfig:/config
+    depends_on:
+      api: { condition: service_healthy }
+
+volumes:
+  dbdata: {}
+  workercache: {}
+  caddydata: {}
+  caddyconfig: {}

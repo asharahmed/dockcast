@@ -9,6 +9,8 @@ npm-debug.log*
 .env.*.local
 .env.local
 !.env.example
+# WP-11 local full-stack smoke-test env (see docs/infra.md)
+infra/.env.local-smoke
 
 # Python / uv
 ml/.venv/

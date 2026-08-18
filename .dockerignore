@@ -1,0 +1,36 @@
+# `docs/infra.md` §3 (base list) + housekeeping so `docker build` context stays
+# small and reproducible. Build contexts are the repo root for all three images.
+
+# VCS / editors / OS
+.git
+.gitignore
+.vscode
+.idea
+.DS_Store
+
+# Node
+node_modules
+**/node_modules
+**/dist
+**/*.tsbuildinfo
+**/coverage
+**/*.log
+
+# Python / uv
+ml/.venv
+ml/.cache
+**/__pycache__
+**/*.py[cod]
+**/*.egg-info
+**/.pytest_cache
+**/.ruff_cache
+
+# Env (never bake secrets into an image)
+.env
+.env.*
+!.env.example
+
+# Not needed inside images (kept in the repo, not the build context payload)
+docs
+fixtures
+README.md
