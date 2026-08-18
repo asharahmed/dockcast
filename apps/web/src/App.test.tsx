@@ -33,8 +33,12 @@ describe('routes', () => {
     ['/model', 'How good are the forecasts?'],
   ])('%s renders its h1 "%s"', async (path, heading) => {
     renderApp(path);
-    expect(await screen.findByRole('heading', { level: 1, name: heading })).toBeInTheDocument();
-  });
+    // /model and /trip are React.lazy route chunks (recharts); give them longer than the default
+    // 1 s under a busy parallel workspace test run.
+    expect(
+      await screen.findByRole('heading', { level: 1, name: heading }, { timeout: 8000 }),
+    ).toBeInTheDocument();
+  }, 15_000);
 
   it('/commutes redirects unauthenticated visitors to /login?next=/commutes', async () => {
     renderApp('/commutes');
