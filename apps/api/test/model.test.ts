@@ -89,6 +89,7 @@ describe('GET /model, GET /model/versions/:id', () => {
       expect(body.version.id).toBe(ctx.seeded.modelVersionGbmId);
       expect(body.eval).toHaveLength(4);
       expect(body.eval).toContainEqual({
+        tier: 'gbm',
         split: 'val',
         target: 'bike',
         horizon: 0,

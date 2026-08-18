@@ -175,6 +175,7 @@ export const modelResponseSchema = z.object({
 export type ModelResponse = z.infer<typeof modelResponseSchema>;
 
 export const modelEvalRowSchema = z.object({
+  tier: metricsTierSchema.or(z.literal('gbm')),
   split: z.enum(['val', 'es']),
   target: metricsTargetSchema,
   horizon: horizonOrPooledSchema,

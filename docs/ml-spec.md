@@ -295,7 +295,7 @@ min_data_in_leaf: 200                feature_fraction: 0.8 bagging_fraction: 0.8
 bagging_freq: 1                      lambda_l2: 1.0        max_bin: 255
 num_boost_round: 3000 with early_stopping_rounds: 50 on `es`
   (metric: binary_logloss for M_bike/M_dock, l2 for M_cnt)
-seed: 42, deterministic: true, num_threads: 2, verbosity: -1
+seed: 42, deterministic: true, force_row_wise: true (needed for bit-identical retrains), num_threads: 2, verbosity: -1
 categorical_feature: [dow, daytype, station_id]
 ```
 
@@ -354,8 +354,10 @@ Candidate `cand` is promoted iff **all** hold:
 
 Else the candidate is stored with `status='shadow'` (single shadow slot: it
 replaces the previous shadow). Every run writes `model_versions` +
-`model_eval(model_version_id, split='val', target, horizon, slice, metric,
-value)` regardless of outcome. `model_versions.metrics_val` (JSON) has the
+`model_eval(model_version_id, tier, split='val', target, horizon, slice, metric,
+value)` regardless of outcome (`tier` in the key since migration 0002: a gbm
+version stores its own rows as `tier='gbm'`; `persistence`/`bd_raw`/`bd_cal`
+rows are stored on the run's bd version). `model_versions.metrics_val` (JSON) has the
 `MetricsVal` shape and `model_versions.gate` the `Gate` shape defined in
 `api.md §4`; the check names are fixed: `brier_bike_vs_ref, brier_dock_vs_ref,
 ece_bike, ece_dock, mae_vs_ref, brier_bike_vs_active, brier_dock_vs_active`

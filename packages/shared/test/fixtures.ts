@@ -257,6 +257,7 @@ export const modelResponseFixture: ModelResponse = {
 };
 
 export const modelEvalRowFixture: ModelEvalRow = {
+  tier: 'gbm',
   split: 'val',
   target: 'bike',
   horizon: 60,

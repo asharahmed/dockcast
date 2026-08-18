@@ -84,6 +84,7 @@ export async function getLatestDailyMetrics(pool: Pool, cityId: number): Promise
 }
 
 export interface ModelEvalRow {
+  tier: string;
   split: string;
   target: string;
   horizon: number;
@@ -95,9 +96,9 @@ export interface ModelEvalRow {
 export async function getModelEval(pool: Pool, modelVersionId: number): Promise<ModelEvalRow[]> {
   return many<ModelEvalRow>(
     pool,
-    `SELECT split, target, horizon, slice, metric, value
+    `SELECT tier, split, target, horizon, slice, metric, value
      FROM model_eval WHERE model_version_id = $1
-     ORDER BY split, target, horizon, slice, metric`,
+     ORDER BY tier, split, target, horizon, slice, metric`,
     [modelVersionId],
   );
 }

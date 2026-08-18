@@ -18,6 +18,7 @@ import {
   type MetricsTarget,
   type MetricsSlice,
   type MetricName,
+  type ModelEvalRow,
 } from '@dockcast/shared';
 import type { RouteDeps } from '../deps.js';
 import { sendJson } from '../lib/respond.js';
@@ -137,6 +138,7 @@ export function modelRouter(deps: RouteDeps): Router {
     const body: ModelVersionDetailResponse = {
       version: toModelVersionSummary(version),
       eval: evalRows.map((r) => ({
+        tier: r.tier as ModelEvalRow['tier'],
         split: r.split as 'val' | 'es',
         target: r.target as MetricsTarget,
         horizon: r.horizon,

@@ -29,9 +29,12 @@ describe.skipIf(!DATABASE_URL_TEST)('migrate() against a throwaway database', ()
     await throwaway.drop();
   }, 30_000);
 
-  it('applies 0001 and creates the expected tables and hypertables', async () => {
+  it('applies all migrations and creates the expected tables and hypertables', async () => {
     const applied = await migrate(pool);
-    expect(applied).toEqual([{ version: 1, name: 'init' }]);
+    expect(applied).toEqual([
+      { version: 1, name: 'init' },
+      { version: 2, name: 'model_eval_tier' },
+    ]);
 
     const tables = await many<{ table_name: string }>(
       pool,
@@ -104,9 +107,12 @@ describe.skipIf(!DATABASE_URL_TEST)('migrate() concurrency', () => {
   it('applies the migration exactly once when two migrate() calls race', async () => {
     const [a, b] = await Promise.all([migrate(poolA), migrate(poolB)]);
     const combinedApplied = [...a, ...b];
-    expect(combinedApplied).toEqual([{ version: 1, name: 'init' }]);
+    expect(combinedApplied).toEqual([
+      { version: 1, name: 'init' },
+      { version: 2, name: 'model_eval_tier' },
+    ]);
 
     const count = await one<CountRow>(poolA, 'SELECT count(*)::int AS n FROM schema_migrations');
-    expect(count.n).toBe(1);
+    expect(count.n).toBe(2);
   });
 });

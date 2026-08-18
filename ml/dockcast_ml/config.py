@@ -55,7 +55,7 @@ def load(env: Mapping[str, str] | None = None) -> Config:
 
     return Config(
         database_url=database_url,
-        log_level=source.get("LOG_LEVEL", "INFO"),
+        log_level=source.get("LOG_LEVEL", "INFO").upper(),
         predict_interval_sec=predict_interval_sec,
         trips_cache_dir=Path(source.get("TRIPS_CACHE_DIR", "/data/trips")),
         healthchecks_trainer_url=healthchecks_trainer_url,

@@ -133,7 +133,7 @@ MetricsVal: { n_val: number, brier: { bike: number, dock: number }, logloss: { b
 Gate: { passed: boolean, checks: [{ name: string, value: number|null, threshold: number|null, ok: boolean }] }   // names: brier_bike_vs_ref, brier_dock_vs_ref, ece_bike, ece_dock, mae_vs_ref, brier_bike_vs_active, brier_dock_vs_active
 ```
 ### GET /model/versions/:id  — max-age=300
-`ModelVersionDetailResponse: { version: ModelVersionSummary, eval: [{ split, target, horizon, slice, metric, value }] }`
+`ModelVersionDetailResponse: { version: ModelVersionSummary, eval: [{ tier, split, target, horizon, slice, metric, value }] }` — `tier` ∈ `gbm` (a gbm version's own rows) | `bd_raw` | `bd_cal` | `persistence` (baseline rows stored on the run's bd version).
 
 ## 5. Auth
 

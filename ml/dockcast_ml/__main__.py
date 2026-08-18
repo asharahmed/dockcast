@@ -2,7 +2,7 @@
 
 `bootstrap` and `neighbors` are wired to their real implementations (WP-4).
 `predict` and `profile` are wired to their real implementations (WP-5).
-`train`, `labels`, `metrics` remain "not implemented" stubs (exit 2) until WP-6.
+`train`, `labels`, `metrics` are wired to their real implementations (WP-6).
 """
 
 from __future__ import annotations
@@ -16,7 +16,17 @@ from typing import Any
 
 import numpy as np
 
-from dockcast_ml import config, db, gbfs_ids, logging_setup, neighbors, predict
+from dockcast_ml import (
+    config,
+    db,
+    gbfs_ids,
+    logging_setup,
+    metrics_online,
+    neighbors,
+    predict,
+    train,
+)
+from dockcast_ml import labels as labels_mod
 from dockcast_ml import profile as profile_mod
 from dockcast_ml.bootstrap.run import run_bootstrap
 from dockcast_ml.timeutil import ceil_to, holiday_set, tz_of
@@ -158,6 +168,47 @@ def _cmd_profile(cfg: config.Config, args: argparse.Namespace) -> int:
         conn.close()
 
 
+def _cmd_train(cfg: config.Config, args: argparse.Namespace) -> int:
+    conn = db.connect(cfg, autocommit=False)
+    try:
+        for city in _cities_for(conn, args.city):
+            city_id = city["id"]
+            tz = tz_of(city["tz"])
+            target_date = date.fromisoformat(args.date) if args.date else datetime.now(UTC).astimezone(tz).date()
+            now = datetime.now(UTC)
+            with db.worker_run(cfg, "train", city_id) as summary:
+                summary.update(train.train_city(cfg, conn, city, target_date, now))
+        return 0
+    finally:
+        conn.close()
+
+
+def _cmd_labels(cfg: config.Config, args: argparse.Namespace) -> int:
+    conn = db.connect(cfg, autocommit=False)
+    try:
+        for city in _cities_for(conn, args.city):
+            city_id = city["id"]
+            with db.worker_run(cfg, "labels", city_id) as summary:
+                summary.update(labels_mod.materialise_labels(conn, city, datetime.now(UTC)))
+        return 0
+    finally:
+        conn.close()
+
+
+def _cmd_metrics(cfg: config.Config, args: argparse.Namespace) -> int:
+    conn = db.connect(cfg, autocommit=False)
+    try:
+        for city in _cities_for(conn, args.city):
+            city_id = city["id"]
+            tz = tz_of(city["tz"])
+            target_date = date.fromisoformat(args.date) if args.date else datetime.now(UTC).astimezone(tz).date()
+            with db.worker_run(cfg, "metrics", city_id) as summary:
+                summary.update(metrics_online.compute(conn, city, target_date))
+        return 0
+    finally:
+        conn.close()
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
@@ -168,7 +219,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.t0 is not None and not args.once:
             parser.error("--t0 is only valid with --once")
 
-    if args.command not in ("bootstrap", "neighbors", "predict", "profile"):
+    if args.command not in ("bootstrap", "neighbors", "predict", "profile", "train", "labels", "metrics"):
         print(f"dockcast_ml {args.command}: not implemented", file=sys.stderr)
         return 2
 
@@ -182,7 +233,13 @@ def main(argv: list[str] | None = None) -> int:
             return _cmd_neighbors(cfg, args)
         if args.command == "predict":
             return _cmd_predict(cfg, args)
-        return _cmd_profile(cfg, args)
+        if args.command == "profile":
+            return _cmd_profile(cfg, args)
+        if args.command == "train":
+            return _cmd_train(cfg, args)
+        if args.command == "labels":
+            return _cmd_labels(cfg, args)
+        return _cmd_metrics(cfg, args)
     except Exception as exc:
         logger.error("command failed", extra={"error": str(exc), "command": args.command})
         return 1
