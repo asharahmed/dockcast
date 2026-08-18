@@ -49,18 +49,27 @@ export async function getCollectorUptime7d(
   cityId: number,
   now: Date,
 ): Promise<number | null> {
-  const row = await one<{ total: number; ok_recent: number }>(
+  const row = await one<{ total: number; ok_recent: number; first_recent: Date | null }>(
     pool,
     `SELECT
        count(*) AS total,
        count(*) FILTER (
          WHERE ok AND polled_at >= $2::timestamptz - interval '7 days' AND polled_at <= $2::timestamptz
-       ) AS ok_recent
+       ) AS ok_recent,
+       min(polled_at) FILTER (
+         WHERE polled_at >= $2::timestamptz - interval '7 days' AND polled_at <= $2::timestamptz
+       ) AS first_recent
      FROM poll_log WHERE city_id = $1 AND feed = 'station_status'`,
     [cityId, now],
   );
   if (row.total === 0) return null;
-  return row.ok_recent / 10080;
+  // Expected polls = one per minute over the part of the 7-day window in which the collector
+  // existed (so a collector that started 2 days ago is scored against 2 days, not 7).
+  const windowStart = new Date(now.getTime() - 7 * 24 * 60 * 60_000);
+  const effectiveStart =
+    row.first_recent && row.first_recent > windowStart ? row.first_recent : windowStart;
+  const expected = Math.max(1, Math.round((now.getTime() - effectiveStart.getTime()) / 60_000));
+  return Math.min(1, row.ok_recent / expected);
 }
 
 /** `min(station_snapshots.ts)` for a city's stations — `docs/api.md` §4 `data_since`; `null` if none yet. */

@@ -482,8 +482,20 @@ def loop(cfg: Config, city_slug: str | None = None) -> None:
                 try:
                     with db.worker_run(cfg, "predict", city_id) as summary:
                         summary.update(predict_once(cfg, conn, city, t0, state))
+                    conn.commit()
                 except Exception:
                     logger.exception("predict_once failed", extra={"city_id": city_id, "t0": t0.isoformat()})
+                    # The connection is non-autocommit: without a rollback an aborted transaction
+                    # would poison every later statement ("current transaction is aborted").
+                    try:
+                        conn.rollback()
+                    except Exception:
+                        logger.exception("rollback failed; reconnecting")
+                        conn.close()
+                        conn = db.connect(cfg, autocommit=False)
+            # End the implicit transaction opened by the cities SELECT so we don't sit
+            # "idle in transaction" (holding a snapshot) for the whole sleep.
+            conn.commit()
     finally:
         conn.close()
 

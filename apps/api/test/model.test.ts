@@ -25,7 +25,9 @@ describe('GET /model, GET /model/versions/:id', () => {
       expect(body.n_stations_active).toBeGreaterThan(50);
 
       expect(body.collector.last_ok_at).not.toBeNull();
-      expect(body.collector.uptime_7d_pct).toBeCloseTo(1441 / 10080, 9);
+      // Seed: one ok poll per minute for the 24 h before FIXED_NOW; the collector is younger than
+      // 7 d, so it is scored against those 24 h (all ok) → 1 (capped).
+      expect(body.collector.uptime_7d_pct).toBe(1);
 
       expect(body.predictor.last_run_at).not.toBeNull();
       expect(body.predictor.serving_tier).toBe('bd_raw');
