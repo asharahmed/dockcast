@@ -88,7 +88,10 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     throw new Error(`Invalid environment configuration:\n${parsed.error.toString()}`);
   }
   const data = parsed.data;
-  const root = repoRoot();
+  // Only locate the repo root when a path actually needs defaulting: pruned
+  // production images (`pnpm deploy --prod`) set both env vars and carry no
+  // pnpm-workspace.yaml to walk up to.
+  const root = data.WEB_DIST_DIR && data.MIGRATIONS_DIR ? null : repoRoot();
 
   return {
     port: data.PORT,
@@ -98,8 +101,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     vapidPrivateKey: data.VAPID_PRIVATE_KEY,
     vapidSubject: data.VAPID_SUBJECT,
     publicBaseUrl: data.PUBLIC_BASE_URL,
-    webDistDir: data.WEB_DIST_DIR ?? join(root, 'apps', 'web', 'dist'),
-    migrationsDir: data.MIGRATIONS_DIR ?? join(root, 'db', 'migrations'),
+    webDistDir: data.WEB_DIST_DIR ?? join(root ?? repoRoot(), 'apps', 'web', 'dist'),
+    migrationsDir: data.MIGRATIONS_DIR ?? join(root ?? repoRoot(), 'db', 'migrations'),
     logLevel: data.LOG_LEVEL,
     nodeEnv: data.NODE_ENV,
     trustProxy: data.TRUST_PROXY,

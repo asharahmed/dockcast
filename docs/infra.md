@@ -515,3 +515,25 @@ Hetzner CX22 ≈ €3.79/mo (+ €0.60 IPv4) or DO Basic 4 GB $24/mo; domain alr
 - [ ] `ci.yml` green with DB tests executed (not skipped) in both jobs.
 - [ ] `backup.sh` produces a restorable dump (test `restore.sh` once on the dev compose).
 - [ ] healthchecks.io shows collector pings every minute.
+
+---------------------------------------------------------------------------
+
+## 12. Reconciliation notes (post-WP-11, 2026-08-18)
+
+The committed files under `infra/`, `apps/*/Dockerfile`, `ml/Dockerfile`, `.github/workflows/deploy.yml`
+and `.env.example` are canonical where they differ from the listings above. Differences found by
+building and smoke-testing the real stack:
+- `Caddyfile`: the `log { output file … }` sub-block must be multi-line (one option per line).
+- `deploy.yml`: `${{ … }}` expressions inside flow mappings must be quoted.
+- `worker-train`: `supercronic -no-reap -passthrough-logs …` (PID-1 reaping crash-loop seen on the OrbStack/arm64 build host).
+- `worker-predict`/`worker-train`: `depends_on: api: condition: service_healthy` (the Python workers rely on the
+  api having run migrations; the collector keeps `service_started` because it has its own `waitForSchema` loop).
+- New env keys: `SITE_ADDRESS` (Caddy site address; `http://localhost` for local smoke, defaults to `DOMAIN`),
+  `GHCR_OWNER`, `IMAGE_TAG`, `ENV_FILE`, `HEALTHCHECKS_BACKUP_URL`; images are
+  `ghcr.io/${GHCR_OWNER:-local}/dockcast-{api,collector,worker}:${IMAGE_TAG:-latest}` and compose services
+  carry `build:` contexts so `docker compose -f infra/docker-compose.yml build` works locally.
+- Image sizes (arm64 local build): api 407 MB, collector 385 MB, worker 1.52 GB (§10's estimate was low).
+- Local full-stack smoke: `docker compose -p dockcast-smoke -f infra/docker-compose.yml --env-file infra/.env.local-smoke up -d`
+  (env file gitignored; `down -v` to clean up). Never run it against the `dockcast-dev` compose project's ports.
+- Code follow-ups made after WP-11: `apps/api/src/config.ts` only resolves the repo root when a path needs
+  defaulting; `dockcast_ml/logging_setup.py` upper-cases `LOG_LEVEL` (pending WP-6 commit).
