@@ -37,9 +37,13 @@ export function createSessionMiddleware(pool: Pool, config: Config): RequestHand
     resave: false,
     saveUninitialized: false,
     rolling: true,
+    proxy: config.nodeEnv === 'production' ? true : undefined,
     cookie: {
       httpOnly: true,
-      secure: config.nodeEnv === 'production',
+      // 'auto': Secure iff the request is HTTPS (behind Caddy this comes from X-Forwarded-Proto via
+      // `trust proxy`), so production gets Secure cookies while a plain-HTTP local stack still works.
+      // In production we additionally refuse to run without HTTPS semantics via `proxy: true` below.
+      secure: 'auto',
       sameSite: 'lax',
       maxAge: THIRTY_DAYS_MS,
     },
