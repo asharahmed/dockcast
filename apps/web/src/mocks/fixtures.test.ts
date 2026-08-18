@@ -13,6 +13,15 @@ import {
   stationHistoryResponseFixture,
   healthResponseFixture,
   userResponseFixture,
+  tripResponseGoodFixture,
+  tripResponseBadFixture,
+  tripResponseTypicalFixture,
+  modelResponseFixture,
+  modelVersionDetailResponseFixture,
+  commuteListResponseFixture,
+  vapidKeyResponseFixture,
+  pushSubscribeResponseFixture,
+  pushTestResponseFixture,
 } from './fixtures.js';
 
 describe('MSW fixtures conform to @dockcast/shared schemas', () => {
@@ -50,5 +59,53 @@ describe('MSW fixtures conform to @dockcast/shared schemas', () => {
 
   it('userResponseFixture', () => {
     expect(schemas.userResponse.parse(userResponseFixture)).toEqual(userResponseFixture);
+  });
+
+  it('tripResponseGoodFixture', () => {
+    expect(schemas.tripResponse.parse(tripResponseGoodFixture)).toEqual(tripResponseGoodFixture);
+  });
+
+  it('tripResponseBadFixture', () => {
+    expect(schemas.tripResponse.parse(tripResponseBadFixture)).toEqual(tripResponseBadFixture);
+  });
+
+  it('tripResponseTypicalFixture', () => {
+    expect(schemas.tripResponse.parse(tripResponseTypicalFixture)).toEqual(
+      tripResponseTypicalFixture,
+    );
+  });
+
+  it('modelResponseFixture', () => {
+    expect(schemas.modelResponse.parse(modelResponseFixture)).toEqual(modelResponseFixture);
+  });
+
+  it('modelVersionDetailResponseFixture', () => {
+    expect(schemas.modelVersionDetailResponse.parse(modelVersionDetailResponseFixture)).toEqual(
+      modelVersionDetailResponseFixture,
+    );
+  });
+
+  it('commuteListResponseFixture', () => {
+    expect(schemas.commuteListResponse.parse(commuteListResponseFixture)).toEqual(
+      commuteListResponseFixture,
+    );
+  });
+
+  it('vapidKeyResponseFixture', () => {
+    expect(schemas.vapidKeyResponse.parse(vapidKeyResponseFixture)).toEqual(
+      vapidKeyResponseFixture,
+    );
+  });
+
+  it('pushSubscribeResponseFixture', () => {
+    expect(schemas.pushSubscribeResponse.parse(pushSubscribeResponseFixture)).toEqual(
+      pushSubscribeResponseFixture,
+    );
+  });
+
+  it('pushTestResponseFixture', () => {
+    expect(schemas.pushTestResponse.parse(pushTestResponseFixture)).toEqual(
+      pushTestResponseFixture,
+    );
   });
 });

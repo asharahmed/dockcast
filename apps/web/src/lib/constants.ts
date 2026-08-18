@@ -83,12 +83,6 @@ export const COPY = {
     listToggle: 'List',
     mapAriaLabel: (city: string) => `Map of ${city} stations coloured by forecast`,
     attribution: '© OpenFreeMap © OpenMapTiles Data from OpenStreetMap',
-    plannerPlaceholderTitle: 'Plan a trip',
-    // SPEC-GAP: ui-spec.md §4.1 describes the full TripPlanner form in this
-    // panel slot; that component ships in WP-10. This placeholder copy is
-    // not specified verbatim, chosen to match the doc's plain, calm tone.
-    plannerPlaceholderBody:
-      'Trip planning is coming soon. Pick a station on the map, or search above, to see its bike and dock odds.',
   },
   horizon: {
     now: 'Now',
@@ -158,5 +152,199 @@ export const COPY = {
   },
   about: {
     title: 'About DockCast',
+  },
+  trip: {
+    title: 'Trip check',
+    fields: {
+      from: 'From',
+      to: 'To',
+      leave: 'Leave',
+      rideTime: 'Ride time',
+    },
+    leaveMode: { now: 'Now', at: 'At…' },
+    leaveInPastHelper: "That's earlier than now — we'll use now.",
+    rideAutoHelper: 'Estimated at 12 km/h',
+    rideReset: 'Reset',
+    swapAriaLabel: 'Swap stations',
+    validation: {
+      chooseStation: 'Choose a station',
+      sameStation: 'Pick two different stations',
+      rideRange: '1–180 minutes',
+    },
+    submit: 'Check my trip',
+    submitting: 'Checking…',
+    editSummary: (from: string, to: string, leave: string, ride: number) =>
+      `From ${from} to ${to} · leaving ${leave} · ${ride} min ride`,
+    edit: 'Edit',
+    errors: {
+      tooManyChecks: 'Too many checks — wait a moment.',
+      generic: "Couldn't check that trip. Try again.",
+    },
+    computedLine: (computedAt: string, forecastT0: string | null) =>
+      forecastT0 ? `Computed ${computedAt} · forecasts from ${forecastT0}` : `Computed ${computedAt}`,
+    eyebrow: { origin: 'LEAVE FROM', dest: 'ARRIVE AT' },
+    heroObject: {
+      origin: (time: string) => `a bike at ${time}`,
+      dest: (time: string) => `an empty dock at ${time}`,
+    },
+    nowMeta: (bikes: number, docks: number) => `Now: ${bikes} bikes · ${docks} docks`,
+    notReporting: 'not reporting',
+    expectedThenBikes: (n: number) => `Expected then: ~${n} bikes`,
+    expectedThenDocks: (n: number) => `Expected then: ~${n} docks`,
+    typicalLabel: (maxLead: number) => `Typical for this time · forecasts start ${maxLead} min ahead`,
+    unavailableLabel: 'No forecast right now',
+    alternatives: {
+      heading: { origin: 'Nearby with better odds for a bike', dest: 'Nearby with better odds for a dock' },
+      toggle: 'Other nearby stations',
+      safeBet: 'Safe bet',
+      walkLine: (min: number, m: number) => `${min} min walk · ${m} m`,
+      empty: 'No nearby stations with a forecast.',
+    },
+    share: 'Share',
+    shareCopied: 'Link copied',
+    saveAsCommute: 'Save as commute',
+    fromUrlPrompt: 'Pick two stations to check a trip.',
+    openOnMap: 'Open on the map',
+  },
+  commutes: {
+    title: 'My commutes',
+    newCommute: 'New commute',
+    push: {
+      unsupported: 'Alerts need a browser with push notifications (Safari 16.4+, Chrome, Firefox).',
+      denied: 'Notifications are blocked for this site — allow them in your browser settings to get alerts.',
+      defaultBody: 'Get a push before you leave if the odds drop.',
+      enable: 'Enable alerts',
+      enabledToast: 'Alerts on for this device',
+      enableErrorToast: "Couldn't enable alerts on this device.",
+      subscribedBody: 'Alerts are on for this device.',
+      sendTest: 'Send a test',
+      testSentToast: 'Test sent — check your notifications',
+      testNoneToast: 'No devices to send to',
+      turnOff: 'Turn off on this device',
+      // SPEC-GAP: ui-spec.md §4.4's strip note names a per-commute `<lead>`
+      // minutes value, but PushSetup is device-scoped (one strip covers every
+      // commute, each with its own lead/threshold) — rendered generically
+      // rather than picking one commute's number arbitrarily.
+      note: "You'll get one alert per commute per day, before you leave, only if the odds fall under your threshold.",
+    },
+    empty: {
+      title: 'No commutes yet',
+      body: "Save your regular ride and we'll tell you before you leave whether there'll be a bike — and a dock at the other end.",
+    },
+    days: {
+      weekdays: 'Mon–Fri',
+      everyDay: 'Every day',
+    },
+    schedule: (days: string, leave: string, ride: number) => `${days} · leaves ${leave} · ${ride} min ride`,
+    alertsLine: (on: boolean, lead: number, thresholdPct: number) =>
+      `Alerts ${on ? 'on' : 'off'} · ${lead} min before · under ${thresholdPct}%`,
+    edit: 'Edit',
+    delete: 'Delete',
+    deleteConfirm: (name: string) => `Delete "${name}"?`,
+    cancel: 'Cancel',
+    outlook: {
+      todayAt: (time: string) => `Next: today ${time}`,
+      tomorrowAt: (time: string) => `Next: tomorrow ${time}`,
+      otherAt: (time: string) => `Next: ${time}`,
+      typicalSuffix: '(typical)',
+      none: 'No upcoming departure',
+      tooltip: (bikePct: string, dockPct: string) => `Bike ${bikePct} · Dock ${dockPct}`,
+    },
+    form: {
+      nameLabel: 'Name',
+      nameDefault: 'Commute to work',
+      fromLabel: 'From',
+      toLabel: 'To',
+      leaveAtLabel: 'Leave at',
+      daysLabel: 'Days',
+      daysWeekdays: 'Weekdays',
+      daysEveryDay: 'Every day',
+      rideLabel: 'Ride time',
+      alertsLabel: 'Alerts',
+      alertLeadLabel: 'Alert lead',
+      thresholdLabel: 'Alert me when the odds drop under',
+      saveNew: 'Save commute',
+      saveEdit: 'Save changes',
+      cancel: 'Cancel',
+      validation: {
+        name: 'Give it a name',
+        station: 'Choose a station',
+        sameStation: 'Pick two different stations',
+        days: 'Pick at least one day',
+        ride: '1–180 minutes',
+      },
+      savedToast: 'Commute saved',
+    },
+    couldntLoad: "Couldn't load your commutes.",
+  },
+  model: {
+    title: 'How good are the forecasts?',
+    intro:
+      'Every forecast DockCast shows is scored against what actually happened. This page is generated from those scores — nothing here is hand-picked.',
+    summary: {
+      servingNow: 'Serving now',
+      activeLearnedModel: 'Active learned model',
+      dataSince: 'Data since',
+      collectorUptime: 'Collector uptime (7 d)',
+      lastForecastRun: 'Last forecast run',
+      stations: 'Stations',
+      noneYet: 'none yet (baseline serving)',
+      activeModelLine: (id: number, trainedFor: string) => `#${id} · trained for ${trainedFor}`,
+    },
+    explainer: {
+      heading: 'Three tiers, always compared',
+      persistence: { name: 'Persistence', body: 'assumes nothing changes' },
+      flow: { name: 'Flow model', body: 'a queue model fed by a year of trip history and the weather' },
+      learned: {
+        name: 'Learned model',
+        body: 'a gradient-boosted model trained on our own snapshots — it only serves if it beats the flow model on held-out days',
+      },
+      // SPEC-GAP: ui-spec.md §4.5 item 3 asks for "a 'Shadow' note" without
+      // quoting exact text; written to match the doc's plain, factual tone.
+      shadow:
+        'Shadow: a candidate learned model scored quietly alongside the active one — it only takes over once it proves itself.',
+    },
+    sliceToggle: { all: 'All stations', atRisk: 'At-risk stations' },
+    charts: {
+      brierTitle: 'Brier score by horizon (lower is better) — last 7 days',
+      brierExplainer:
+        'Brier = mean squared error of the probability. 0 is perfect; predicting 50% everywhere scores 0.25.',
+      maeTitle: 'Expected-count error (MAE, bikes) by horizon — last 7 days',
+      reliabilityTitle: 'Calibration — last 7 days',
+      reliabilityExplainer:
+        'If we say 80%, it should happen about 80% of the time. Points on the line are calibrated. ECE summarises the gap.',
+      reliabilityTooltip: (predPct: string, obsPct: string, n: number) =>
+        `Predicted ${predPct} → happened ${obsPct} (n ${n.toLocaleString()})`,
+      perfectLabel: 'perfect',
+      empty: 'No scored forecasts yet — scores appear after the first full day of forecasts.',
+      nSuffix: (n: number) => `n ${n.toLocaleString()}`,
+    },
+    tierNames: {
+      persistence: 'persistence',
+      bd_raw: 'flow (uncalibrated)',
+      bd_cal: 'flow',
+      gbm_active: 'gbm',
+      gbm_shadow: 'shadow',
+    },
+    eceLine: (parts: string) => `ECE: ${parts}`,
+    versions: {
+      heading: 'Model versions',
+      columns: {
+        id: '#',
+        tier: 'Tier',
+        trainedFor: 'Trained for',
+        status: 'Status',
+        valBrier: 'Val Brier (bike / dock)',
+        gate: 'Gate',
+        created: 'Created',
+      },
+      gatePassed: 'passed',
+      gateFailed: 'failed',
+      empty: 'No model versions yet.',
+    },
+    footnote:
+      'Metrics are computed nightly over forecasts made at :00/:15/:30/:45 and the state observed at their target time. Definitions:',
+    footnoteLinkLabel: 'docs/ml-spec.md',
+    couldntLoad: "Couldn't load model metrics.",
   },
 } as const;

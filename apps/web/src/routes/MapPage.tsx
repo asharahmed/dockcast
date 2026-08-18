@@ -14,6 +14,7 @@ import { StationSearch } from '../components/map/StationSearch.js';
 import { StationPanel } from '../components/map/StationPanel.js';
 import { MapLegend } from '../components/map/MapLegend.js';
 import { StationListView } from '../components/map/StationListView.js';
+import { TripPlanner } from '../components/trip/TripPlanner.js';
 import { TargetToggle } from '../components/forecast/TargetToggle.js';
 import { HorizonSlider } from '../components/forecast/HorizonSlider.js';
 import { FreshnessNote } from '../components/forecast/FreshnessNote.js';
@@ -152,10 +153,7 @@ export default function MapPage() {
               asOf={asOf}
             />
           ) : (
-            <div className="flex flex-col gap-2">
-              <h2 className="text-[length:var(--fs-lg)]">{COPY.map.plannerPlaceholderTitle}</h2>
-              <p className="text-[length:var(--fs-sm)] text-ink-2">{COPY.map.plannerPlaceholderBody}</p>
-            </div>
+            <TripPlanner stations={stations} mapStations={mapStations} cityTz={city.tz} now={now} />
           )}
         </>
       )}

@@ -1,13 +1,15 @@
 /**
  * Mini detail panel for the selected station. ui-spec.md §4.1.
  *
- * "Trip from here"/"Trip to here" navigate to `/trip?from=`/`?to=` — the
- * inline `TripPlanner` prefill described in ui-spec.md §4.1 ships in WP-10;
- * navigating to the (placeholder, until WP-10) `/trip` page is the
- * documented fallback for that gap.
+ * "Trip from here"/"Trip to here" open the inline `TripPlanner` on the map,
+ * prefilled with this station (ui-spec.md §4.1's intent), by clearing
+ * `?station=` and setting `?from=`/`?to=` — the panel slot then falls
+ * through to `TripPlanner` (see `routes/MapPage.tsx`). The `/trip` deep link
+ * (`?from=&to=&at=&ride=`) is unaffected: it's a different route reading the
+ * same param names.
  */
 import { useEffect, useRef } from 'react';
-import { Link, useNavigate } from 'react-router';
+import { Link, useSearchParams } from 'react-router';
 import { IconButton } from '../ui/IconButton.js';
 import { Button } from '../ui/Button.js';
 import { Chip } from '../ui/Chip.js';
@@ -25,8 +27,20 @@ export interface StationPanelProps {
 }
 
 export function StationPanel({ station, name, onClose, now, asOf }: StationPanelProps) {
-  const navigate = useNavigate();
+  const [, setSearchParams] = useSearchParams();
   const headingRef = useRef<HTMLHeadingElement>(null);
+
+  function planTripFrom(key: 'from' | 'to') {
+    setSearchParams(
+      (prev) => {
+        const params = new URLSearchParams(prev);
+        params.delete('station');
+        params.set(key, String(station.id));
+        return params;
+      },
+      { replace: true },
+    );
+  }
 
   useEffect(() => {
     headingRef.current?.focus();
@@ -78,18 +92,10 @@ export function StationPanel({ station, name, onClose, now, asOf }: StationPanel
           {COPY.map.stationDetails}
         </Link>
         <div className="flex gap-2">
-          <Button
-            variant="secondary"
-            icon="bike"
-            onClick={() => navigate(`/trip?from=${station.id}`)}
-          >
+          <Button variant="secondary" icon="bike" onClick={() => planTripFrom('from')}>
             {COPY.map.tripFromHere}
           </Button>
-          <Button
-            variant="secondary"
-            icon="dock"
-            onClick={() => navigate(`/trip?to=${station.id}`)}
-          >
+          <Button variant="secondary" icon="dock" onClick={() => planTripFrom('to')}>
             {COPY.map.tripToHere}
           </Button>
         </div>

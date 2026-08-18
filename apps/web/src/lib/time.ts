@@ -2,13 +2,10 @@
  * City-tz display helpers. ui-spec.md §1 `lib/time.ts`, §5 (`fmtPct`/relative
  * time table). Calendar/day-of-week logic (`nextOccurrence`) stays in
  * `@dockcast/shared` (plan.md §1 R5) — this module only formats for display.
- *
- * `nextDepart`/`minutesBetween` (also named in ui-spec.md §1's file table) are
- * not needed by any WP-9 screen; they land with the commutes UI in WP-10
- * alongside their consumers, so this file isn't left with untested exports.
  */
 import { TZDate } from '@date-fns/tz';
 import { format, formatDistanceStrict } from 'date-fns';
+import { localParts, zonedTimeToUtc } from '@dockcast/shared';
 
 const HHMM_RE = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
@@ -59,4 +56,27 @@ export function horizonDurationLabel(minutes: number): string {
   if (minutes < 60) return `${minutes} min`;
   if (minutes % 60 === 0) return `${minutes / 60} h`;
   return `${Math.floor(minutes / 60)} h ${minutes % 60}`;
+}
+
+/**
+ * Convert `hhmm` (wall-clock, `tzName`) on **today's** local calendar date
+ * (as observed from `now`) into the UTC instant it denotes — always
+ * returned, whether that instant is already in the past or not. ui-spec.md
+ * §4.1 `TripPlanner`'s "Leave: At…" field reads this to build the
+ * `depart_at` query param; the caller compares the result with `now` to
+ * decide whether to show the "That's earlier than now" helper and fall back
+ * to `now`. A thin wrapper composing `@dockcast/shared`'s `localParts` +
+ * `zonedTimeToUtc` (plan.md §1 R5: never re-declared) rather than
+ * `nextOccurrence` — that function searches *forward* to the next matching
+ * weekday, which would silently roll a past time to next week instead of
+ * reporting "in the past" for today.
+ */
+export function nextDepart(now: Date, tzName: string, hhmm: string): Date {
+  const { year, month, day } = localParts(now, tzName);
+  return zonedTimeToUtc({ year, month, day }, hhmm, tzName);
+}
+
+/** Minutes between two instants, `b - a` (fractional). */
+export function minutesBetween(a: Date, b: Date): number {
+  return (b.getTime() - a.getTime()) / 60_000;
 }

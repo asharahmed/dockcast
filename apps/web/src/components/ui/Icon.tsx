@@ -26,7 +26,13 @@ export type IconName =
   | 'close'
   | 'external'
   | 'list'
-  | 'map';
+  | 'map'
+  // SPEC-GAP: ui-spec.md §2.6's icon list doesn't include a swap glyph, but
+  // §4.1 calls for one on `TripPlanner`'s From/To swap button ("icon with
+  // aria-label='Swap stations'"). Added here, matching the set's existing
+  // style (24 px grid, 1.75 px stroke, no icon libraries) rather than
+  // repurposing an unrelated icon.
+  | 'swap';
 
 export interface IconProps {
   name: IconName;
@@ -143,6 +149,12 @@ const PATHS: Record<IconName, ReactNode> = {
     <>
       <path d="M9 4.5L4 6.5v13l5-2 6 2 5-2v-13l-5 2-6-2z" />
       <path d="M9 4.5v13M15 6.5v13" />
+    </>
+  ),
+  swap: (
+    <>
+      <path d="M4 8.5h13.5M14 4.5l3.5 4-3.5 4" />
+      <path d="M20 15.5H6.5M10 19.5l-3.5-4 3.5-4" />
     </>
   ),
 };

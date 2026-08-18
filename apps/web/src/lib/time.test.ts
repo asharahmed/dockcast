@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { fmtLocalTime, parseHHMM, fmtRelative, horizonTickLabel, horizonDurationLabel, HORIZON_STOPS } from './time.js';
+import {
+  fmtLocalTime,
+  parseHHMM,
+  fmtRelative,
+  horizonTickLabel,
+  horizonDurationLabel,
+  HORIZON_STOPS,
+  nextDepart,
+  minutesBetween,
+} from './time.js';
 
 describe('fmtLocalTime', () => {
   it('formats an instant in the given IANA zone', () => {
@@ -57,5 +66,52 @@ describe('horizonDurationLabel', () => {
     [120, '2 h'],
   ])('horizonDurationLabel(%s) -> %s', (minutes, expected) => {
     expect(horizonDurationLabel(minutes)).toBe(expected);
+  });
+});
+
+describe('nextDepart', () => {
+  // 2026-08-17T12:00:00Z is 08:00 EDT in America/Toronto.
+  const now = new Date('2026-08-17T12:00:00Z');
+
+  it("returns today's instant for an HH:MM later than now", () => {
+    const result = nextDepart(now, 'America/Toronto', '08:15');
+    expect(result.toISOString()).toBe('2026-08-17T12:15:00.000Z');
+  });
+
+  it("still returns today's (now-past) instant for an HH:MM earlier than now — caller decides the fallback", () => {
+    const result = nextDepart(now, 'America/Toronto', '07:00');
+    expect(result.toISOString()).toBe('2026-08-17T11:00:00.000Z');
+    expect(result.getTime()).toBeLessThan(now.getTime());
+  });
+
+  it('is DST-safe across the America/Toronto spring-forward boundary (2026-03-08)', () => {
+    // 2026-03-08T06:00:00Z is 01:00 EST (pre-transition) in America/Toronto.
+    const beforeSpringForward = new Date('2026-03-08T06:00:00Z');
+    // 03:30 local on the transition day is 07:30 UTC (EDT, UTC-4).
+    const result = nextDepart(beforeSpringForward, 'America/Toronto', '03:30');
+    expect(result.toISOString()).toBe('2026-03-08T07:30:00.000Z');
+  });
+
+  it('is DST-safe across the America/Toronto fall-back boundary (2026-11-01)', () => {
+    // 2026-11-01T04:00:00Z is 00:00 EDT (pre-transition, unambiguous) in
+    // America/Toronto; clocks fall back from 2:00 EDT to 1:00 EST that day.
+    const beforeFallBack = new Date('2026-11-01T04:00:00Z');
+    // 03:30 local is unambiguously post-transition (EST, UTC-5) -> 08:30 UTC.
+    const result = nextDepart(beforeFallBack, 'America/Toronto', '03:30');
+    expect(result.toISOString()).toBe('2026-11-01T08:30:00.000Z');
+  });
+});
+
+describe('minutesBetween', () => {
+  it('is (b - a) in minutes, fractional', () => {
+    const a = new Date('2026-08-17T12:00:00Z');
+    const b = new Date('2026-08-17T12:01:30Z');
+    expect(minutesBetween(a, b)).toBe(1.5);
+  });
+
+  it('is negative when b is before a', () => {
+    const a = new Date('2026-08-17T12:05:00Z');
+    const b = new Date('2026-08-17T12:00:00Z');
+    expect(minutesBetween(a, b)).toBe(-5);
   });
 });
