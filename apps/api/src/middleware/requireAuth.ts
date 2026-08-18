@@ -1,11 +1,15 @@
 /**
- * Stub session-auth guard. `docs/plan.md` WP-8 replaces this with real
- * Postgres-backed session checks (`connect-pg-simple`); until then every
- * request is unauthorized, matching `docs/api.md` §0's `401 unauthorized`.
+ * Session-auth guard. `docs/api.md` §0: `401 unauthorized` when there is no
+ * (or an expired) session. Requires `createSessionMiddleware` (`session.ts`)
+ * to be mounted ahead of this in the stack.
  */
 import type { RequestHandler } from 'express';
 import { unauthorized } from './errors.js';
 
-export const requireAuth: RequestHandler = (_req, _res, next) => {
-  next(unauthorized());
+export const requireAuth: RequestHandler = (req, _res, next) => {
+  if (!req.session?.userId) {
+    next(unauthorized());
+    return;
+  }
+  next();
 };

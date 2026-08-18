@@ -24,6 +24,18 @@ export function parseQuery<Output, Input = Output>(
   return result.data;
 }
 
+/** Same as {@link parseQuery}, for request bodies (distinct error message only). */
+export function parseBody<Output, Input = Output>(
+  schema: ZodType<Output, ZodTypeDef, Input>,
+  input: unknown,
+): Output {
+  const result = schema.safeParse(input);
+  if (!result.success) {
+    throw validationError('Invalid request body', result.error.flatten());
+  }
+  return result.data;
+}
+
 /** Parse a route param (e.g. `:id`) as a positive integer; `null` if not a valid id. */
 export function parseIntParam(value: string | undefined): number | null {
   if (value === undefined || !/^\d+$/.test(value)) return null;

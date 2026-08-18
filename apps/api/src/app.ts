@@ -8,12 +8,17 @@ import { pinoHttp } from 'pino-http';
 import type { AppDeps, RouteDeps } from './deps.js';
 import { requestId } from './middleware/requestId.js';
 import { requireFetchHeader } from './middleware/requireFetchHeader.js';
+import { createSessionMiddleware } from './middleware/session.js';
 import { apiNotFoundHandler, errorHandler } from './middleware/errors.js';
 import { healthRouter } from './routes/health.js';
 import { citiesRouter } from './routes/cities.js';
 import { stationsRouter } from './routes/stations.js';
 import { tripRouter } from './routes/trip.js';
 import { modelRouter } from './routes/model.js';
+import { authRouter } from './routes/auth.js';
+import { commutesRouter } from './routes/commutes.js';
+import { pushRouter } from './routes/push.js';
+import { createWebPushTransport } from './alerts/sender.js';
 import { mountStatic } from './static.js';
 
 export type { AppDeps, RouteDeps } from './deps.js';
@@ -24,6 +29,7 @@ export function createApp(deps: AppDeps): Express {
     config: deps.config,
     now: deps.now ?? ((): Date => new Date()),
     logger: deps.logger,
+    pushTransport: deps.pushTransport ?? createWebPushTransport(deps.config),
   };
 
   const app = express();
@@ -42,12 +48,16 @@ export function createApp(deps: AppDeps): Express {
   app.use(helmet());
   app.use(requireFetchHeader);
   app.use(express.json());
+  app.use(createSessionMiddleware(deps.pool, deps.config));
 
   app.use('/api/v1', healthRouter(routeDeps));
   app.use('/api/v1', citiesRouter(routeDeps));
   app.use('/api/v1', stationsRouter(routeDeps));
   app.use('/api/v1', tripRouter(routeDeps));
   app.use('/api/v1', modelRouter(routeDeps));
+  app.use('/api/v1', authRouter(routeDeps));
+  app.use('/api/v1', commutesRouter(routeDeps));
+  app.use('/api/v1', pushRouter(routeDeps));
   // Unmatched /api/* paths — real routes above already responded, this only
   // runs for paths under /api that no router claimed.
   app.use('/api', apiNotFoundHandler);

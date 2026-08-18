@@ -1,12 +1,14 @@
 /**
  * @dockcast/api — Express 5 REST API. `docs/api.md` §9 boot order: config ->
- * migrate() -> app -> listen. (`docs/plan.md` WP-8 adds the alert scheduler
- * start after `listen`.) Exports nothing — this is a process entry point.
+ * migrate() -> app -> listen -> alert scheduler (`docs/plan.md` WP-8).
+ * Exports nothing — this is a process entry point.
  */
 import { createPool, migrate } from '@dockcast/db';
 import pino from 'pino';
 import { loadConfig } from './config.js';
 import { createApp } from './app.js';
+import { createWebPushTransport } from './alerts/sender.js';
+import { startScheduler } from './alerts/scheduler.js';
 
 async function main(): Promise<void> {
   const config = loadConfig();
@@ -20,10 +22,12 @@ async function main(): Promise<void> {
     throw err;
   }
 
-  const app = createApp({ pool, config, logger });
+  const pushTransport = createWebPushTransport(config);
+  const app = createApp({ pool, config, logger, pushTransport });
   app.listen(config.port, () => {
     logger.info({ port: config.port }, 'dockcast-api listening');
   });
+  startScheduler({ pool, logger, pushTransport });
 }
 
 const bootLogger = pino({ level: process.env.LOG_LEVEL ?? 'info' });

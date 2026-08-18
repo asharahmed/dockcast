@@ -1,0 +1,47 @@
+/**
+ * `docs/api.md` §5 / §9 — server-side sessions in the existing `session`
+ * table (created by `db/migrations/0001_init.sql`; `connect-pg-simple`'s
+ * default schema, `createTableIfMissing: false`). Cookie `dockcast.sid`
+ * (httpOnly, `Secure` in production, `SameSite=Lax`, 30-day rolling).
+ */
+import session from 'express-session';
+import connectPgSimple from 'connect-pg-simple';
+import type { RequestHandler } from 'express';
+import type { Pool } from '@dockcast/db';
+import type { Config } from '../config.js';
+
+// Module augmentation: everything under WP-8 reads/writes `req.session.userId`.
+// This file is always part of the `src` TS program (imported by `app.ts`), so
+// the augmentation applies project-wide.
+declare module 'express-session' {
+  interface SessionData {
+    userId?: string;
+  }
+}
+
+const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+
+/** Builds the `express-session` middleware, backed by `connect-pg-simple` on `pool`. */
+export function createSessionMiddleware(pool: Pool, config: Config): RequestHandler {
+  const PgSession = connectPgSimple(session);
+  const store = new PgSession({
+    pool,
+    tableName: 'session',
+    createTableIfMissing: false,
+  });
+
+  return session({
+    store,
+    name: 'dockcast.sid',
+    secret: config.sessionSecret,
+    resave: false,
+    saveUninitialized: false,
+    rolling: true,
+    cookie: {
+      httpOnly: true,
+      secure: config.nodeEnv === 'production',
+      sameSite: 'lax',
+      maxAge: THIRTY_DAYS_MS,
+    },
+  });
+}

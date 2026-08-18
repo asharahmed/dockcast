@@ -4,6 +4,7 @@ import pino from 'pino';
 import { createPool, migrate, type Pool } from '@dockcast/db';
 import { createApp } from '../../src/app.js';
 import { loadConfig } from '../../src/config.js';
+import type { PushTransport } from '../../src/alerts/sender.js';
 import { createThrowawayDb, type ThrowawayDb } from './throwawayDb.js';
 import { seed, FIXED_NOW, type SeededData } from '../seed.js';
 
@@ -36,6 +37,7 @@ function testEnv(databaseUrl: string, overrides: Record<string, string>): NodeJS
 
 export async function setupTestApp(
   envOverrides: Record<string, string> = {},
+  appOverrides: { pushTransport?: PushTransport } = {},
 ): Promise<TestContext> {
   if (!DATABASE_URL_TEST) {
     throw new Error('DATABASE_URL_TEST must be set to run apps/api tests');
@@ -47,7 +49,13 @@ export async function setupTestApp(
 
   const config = loadConfig(testEnv(throwaway.databaseUrl, envOverrides));
   const logger = pino({ level: 'silent' });
-  const app = createApp({ pool, config, now: () => FIXED_NOW, logger });
+  const app = createApp({
+    pool,
+    config,
+    now: () => FIXED_NOW,
+    logger,
+    pushTransport: appOverrides.pushTransport,
+  });
 
   return {
     app,

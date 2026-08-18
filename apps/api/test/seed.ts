@@ -578,3 +578,74 @@ export async function seed(pool: Pool): Promise<SeededData> {
     now: FIXED_NOW,
   };
 }
+
+/**
+ * WP-8 test fixtures: minimal direct-SQL helpers for auth/commutes/push/
+ * scheduler test suites, which need bespoke users/commutes/subscriptions
+ * beyond the read-side fixtures above (e.g. a commute timed to trigger the
+ * alert scheduler at a specific clock, or a user with no real login flow).
+ */
+
+/** `password_hash` defaults to a placeholder — only real for tests that actually log in via `/auth/login`. */
+export async function insertUser(
+  pool: Pool,
+  args: { email: string; passwordHash?: string },
+): Promise<{ id: string; email: string }> {
+  return one<{ id: string; email: string }>(
+    pool,
+    `INSERT INTO users (email, password_hash) VALUES ($1, $2) RETURNING id, email`,
+    [args.email, args.passwordHash ?? 'unused-placeholder-hash'],
+  );
+}
+
+export async function insertPushSubscription(
+  pool: Pool,
+  args: { userId: string; endpoint: string; p256dh?: string; auth?: string },
+): Promise<{ id: string }> {
+  return one<{ id: string }>(
+    pool,
+    `INSERT INTO push_subscriptions (user_id, endpoint, p256dh, auth) VALUES ($1, $2, $3, $4) RETURNING id`,
+    [args.userId, args.endpoint, args.p256dh ?? 'test-p256dh', args.auth ?? 'test-auth'],
+  );
+}
+
+export interface InsertCommuteArgs {
+  userId: string;
+  cityId: number;
+  originStationPk: number;
+  destStationPk: number;
+  name?: string;
+  departLocalTime: string;
+  rideMinutes?: number;
+  daysOfWeek: number[];
+  alertEnabled?: boolean;
+  alertLeadMinutes?: number;
+  threshold?: number;
+}
+
+export async function insertCommute(
+  pool: Pool,
+  args: InsertCommuteArgs,
+): Promise<{ id: string }> {
+  return one<{ id: string }>(
+    pool,
+    `INSERT INTO commutes
+       (user_id, city_id, name, origin_station_pk, dest_station_pk, depart_local_time,
+        ride_minutes, days_of_week, alert_enabled, alert_lead_minutes, threshold)
+     VALUES ($1, $2, $3, $4, $5, $6::time, $7, $8, $9, $10, $11)
+     RETURNING id`,
+    [
+      args.userId,
+      args.cityId,
+      args.name ?? 'Test commute',
+      args.originStationPk,
+      args.destStationPk,
+      args.departLocalTime,
+      args.rideMinutes ?? 10,
+      args.daysOfWeek,
+      args.alertEnabled ?? true,
+      args.alertLeadMinutes ?? 20,
+      args.threshold ?? 0.7,
+    ],
+  );
+}
