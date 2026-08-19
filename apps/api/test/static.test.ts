@@ -31,6 +31,12 @@ describe('static SPA serving (docs/api.md §10)', () => {
       expect(res.headers['cache-control']).toBe('public, max-age=31536000, immutable');
     });
 
+    it('serves un-hashed public files with a short, revalidating cache', async () => {
+      const res = await request(ctx.app).get('/favicon.svg');
+      expect(res.status).toBe(200);
+      expect(res.headers['cache-control']).toBe('public, max-age=3600');
+    });
+
     it('serves sw.js with no-cache and Service-Worker-Allowed: /', async () => {
       const res = await request(ctx.app).get('/sw.js');
       expect(res.status).toBe(200);

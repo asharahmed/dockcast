@@ -2,7 +2,7 @@
  * `docs/api.md` §10 — static asset serving + SPA fallback.
  */
 import { existsSync } from 'node:fs';
-import { basename, join } from 'node:path';
+import { basename, dirname, join } from 'node:path';
 import express, { type Express } from 'express';
 import type { Logger } from 'pino';
 import type { Config } from './config.js';
@@ -34,8 +34,13 @@ export function mountStatic(app: Express, config: Config, logger: Logger): void 
           } else if (base === 'sw.js') {
             res.setHeader('Cache-Control', 'no-cache');
             res.setHeader('Service-Worker-Allowed', '/');
-          } else {
+          } else if (dirname(filePath).endsWith(join(config.webDistDir, 'assets'))) {
+            // Vite content-hashed bundles: the URL changes when the content does.
             res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+          } else {
+            // Un-hashed files copied from public/ (favicon, icons, manifest):
+            // must pick up changes on redeploy, so revalidate hourly via ETag.
+            res.setHeader('Cache-Control', 'public, max-age=3600');
           }
         },
       }),

@@ -198,4 +198,4 @@ alert scheduler. `app.set('trust proxy', TRUST_PROXY)` (Caddy in front). A secon
 ## 10. Static assets
 
 Anything not under `/api/` serves `apps/web/dist` with SPA fallback to `index.html`
-(`Cache-Control: no-cache` for `index.html`, `immutable, max-age=31536000` for hashed assets). `/sw.js` served with `Service-Worker-Allowed: /` and `no-cache`.
+(`Cache-Control: no-cache` for `index.html`, `immutable, max-age=31536000` for hashed `/assets/*`, `max-age=3600` for un-hashed public files like the favicon/icons/manifest). `/sw.js` served with `Service-Worker-Allowed: /` and `no-cache`.
