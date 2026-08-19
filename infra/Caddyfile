@@ -1,7 +1,10 @@
 {$SITE_ADDRESS} {
 	encode zstd gzip
+	# HSTS only over TLS: browsers ignore the header on plain http anyway, and the
+	# Tailscale proving deployment serves http on {$SITE_ADDRESS} :80.
+	@secure protocol https
+	header @secure Strict-Transport-Security "max-age=31536000; includeSubDomains"
 	header {
-		Strict-Transport-Security "max-age=31536000; includeSubDomains"
 		X-Content-Type-Options "nosniff"
 		Referrer-Policy "strict-origin-when-cross-origin"
 		Permissions-Policy "geolocation=(self), camera=(), microphone=()"
