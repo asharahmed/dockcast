@@ -36,7 +36,7 @@ export const COPY = {
     theme: { system: 'System', light: 'Light', dark: 'Dark' },
     healthOk: 'API healthy',
     healthDown: 'API unreachable',
-    footerTagline: 'DockCast — forecasts from open GBFS data. No LLMs involved.',
+    footerTagline: 'Bike-share forecasts from open data.',
   },
   offline: "You're offline. Showing the last data we had.",
   notFound: {
