@@ -8,5 +8,5 @@ HOST="${1:-rdpadmin@100.69.154.58}"; RDIR="${2:-C:\\dockcast}"
 TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
 git archive --format=tar.gz -o "$TMP/dockcast.tgz" HEAD
 scp -q "$TMP/dockcast.tgz" "$HOST:C:/Users/rdpadmin/dockcast.tgz"
-ssh "$HOST" "tar -xzf C:\\Users\\rdpadmin\\dockcast.tgz -C $RDIR; cd $RDIR; docker compose -p dockcast -f infra/docker-compose.yml build 2>&1 | Select-String -Pattern 'Built|ERROR|error:' | Select-Object -Last 6; docker compose -p dockcast -f infra/docker-compose.yml up -d 2>&1 | Select-Object -Last 3; docker compose -p dockcast -f infra/docker-compose.yml ps --format '{{.Name}} {{.Status}}'"
+ssh "$HOST" "tar -xzf C:\\Users\\rdpadmin\\dockcast.tgz -C $RDIR; cd $RDIR; docker compose -p dockcast -f infra/docker-compose.yml build 2>&1 | Select-String -Pattern 'Built|ERROR|error:' | Select-Object -Last 6; docker compose -p dockcast -f infra/docker-compose.yml up -d 2>&1 | Select-Object -Last 3; docker compose -p dockcast -f infra/docker-compose.yml exec caddy caddy reload --config /etc/caddy/Caddyfile 2>&1 | Select-Object -Last 1; docker compose -p dockcast -f infra/docker-compose.yml ps --format '{{.Name}} {{.Status}}'"
 echo "health: $(curl -s -m 10 http://100.69.154.58:8088/api/v1/health)"
