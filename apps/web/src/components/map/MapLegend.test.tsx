@@ -50,7 +50,7 @@ describe('MapLegend', () => {
       />,
     );
     expect(
-      screen.getByText("Live data only — forecasts aren't available for Example City yet."),
+      screen.getByText('Live data only. No forecasts for Example City yet.'),
     ).toBeInTheDocument();
     expect(screen.getByText('Live availability')).toBeInTheDocument();
   });

@@ -19,7 +19,7 @@ import type { Verdict } from '@dockcast/shared';
 export const COPY = {
   errors: {
     generic: 'Something went wrong. Try again.',
-    network: "Can't reach DockCast — check your connection.",
+    network: "Can't reach DockCast. Check your connection.",
   },
   auth: {
     required: 'Sign in to save commutes.',
@@ -38,7 +38,7 @@ export const COPY = {
     healthDown: 'API unreachable',
     footerTagline: 'DockCast — forecasts from open GBFS data. No LLMs involved.',
   },
-  offline: "You're offline — showing the last data we had.",
+  offline: "You're offline. Showing the last data we had.",
   notFound: {
     title: 'Nothing docked here.',
     body: "That page doesn't exist.",
@@ -58,13 +58,12 @@ export const COPY = {
     legendLive: 'Live availability',
     legendLiveHas: (target: 'bike' | 'dock') => (target === 'bike' ? 'Has bikes' : 'Has docks'),
     legendLiveEmpty: 'Empty',
-    liveOnlyBanner: (city: string) =>
-      `Live data only — forecasts aren't available for ${city} yet.`,
+    liveOnlyBanner: (city: string) => `Live data only. No forecasts for ${city} yet.`,
     targetSub: {
       bikes: 'Chance of finding a bike',
       docks: 'Chance of finding an empty dock',
     },
-    stale: (n: number) => `Forecasts are ${n} min old — the predictor may be catching up.`,
+    stale: (n: number) => `Forecasts are ${n} min old. The predictor may be catching up.`,
     searchPlaceholder: 'Find a station…',
     searchLabel: 'Search stations',
     noMatch: (q: string) => `No station matches "${q}"`,
@@ -94,7 +93,7 @@ export const COPY = {
     docksNow: 'empty docks now',
     ebikes: (n: number) => `${n} e-bikes`,
     liveReported: (rel: string) => `Live · reported ${rel}`,
-    notReportingLastSeen: (rel: string) => `Not reporting — last seen ${rel}`,
+    notReportingLastSeen: (rel: string) => `Not reporting · last seen ${rel}`,
     noCurrentData: "We haven't seen this station report yet.",
     forecastCaption: 'Forecast by horizon',
     modelLine: (label: string) => `Model: ${label}`,
@@ -120,7 +119,7 @@ export const COPY = {
       tooltipActual: (n: number) => `Actual: ${n} bikes`,
       tooltipForecast: (exp: number, lo: number, hi: number) =>
         `Forecast: ~${exp} (${lo}–${hi})`,
-      empty: 'No history yet — data starts once the collector has run for a while.',
+      empty: 'No history yet. The chart fills in as the collector runs.',
       table: 'Table',
       chartToggle: 'Chart',
     },
@@ -146,8 +145,8 @@ export const COPY = {
     passwordHint: 'At least 10 characters',
     errors: {
       badCredentials: "That email and password don't match.",
-      emailTaken: 'That email is already registered — sign in instead.',
-      rateLimited: 'Too many attempts — try again in a few minutes.',
+      emailTaken: 'That email is already registered. Sign in instead.',
+      rateLimited: 'Too many attempts. Try again in a few minutes.',
     },
   },
   about: {
@@ -162,7 +161,7 @@ export const COPY = {
       rideTime: 'Ride time',
     },
     leaveMode: { now: 'Now', at: 'At…' },
-    leaveInPastHelper: "That's earlier than now — we'll use now.",
+    leaveInPastHelper: "That's earlier than now, so we'll use now.",
     rideAutoHelper: 'Estimated at 12 km/h',
     rideReset: 'Reset',
     swapAriaLabel: 'Swap stations',
@@ -177,7 +176,7 @@ export const COPY = {
       `From ${from} to ${to} · leaving ${leave} · ${ride} min ride`,
     edit: 'Edit',
     errors: {
-      tooManyChecks: 'Too many checks — wait a moment.',
+      tooManyChecks: 'Too many checks. Try again in a moment.',
       generic: "Couldn't check that trip. Try again.",
     },
     computedLine: (computedAt: string, forecastT0: string | null) =>
@@ -211,25 +210,24 @@ export const COPY = {
     newCommute: 'New commute',
     push: {
       unsupported: 'Alerts need a browser with push notifications (Safari 16.4+, Chrome, Firefox).',
-      denied: 'Notifications are blocked for this site — allow them in your browser settings to get alerts.',
+      denied: 'Notifications are blocked for this site. Allow them in your browser settings to get alerts.',
       defaultBody: 'Get a push before you leave if the odds drop.',
       enable: 'Enable alerts',
       enabledToast: 'Alerts on for this device',
       enableErrorToast: "Couldn't enable alerts on this device.",
       subscribedBody: 'Alerts are on for this device.',
       sendTest: 'Send a test',
-      testSentToast: 'Test sent — check your notifications',
+      testSentToast: 'Test sent. Check your notifications.',
       testNoneToast: 'No devices to send to',
       turnOff: 'Turn off on this device',
-      // SPEC-GAP: ui-spec.md §4.4's strip note names a per-commute `<lead>`
-      // minutes value, but PushSetup is device-scoped (one strip covers every
-      // commute, each with its own lead/threshold) — rendered generically
-      // rather than picking one commute's number arbitrarily.
-      note: "You'll get one alert per commute per day, before you leave, only if the odds fall under your threshold.",
+      // The strip is device-scoped and covers every commute (each with its own
+      // lead/threshold), so the note stays generic rather than naming one
+      // commute's lead.
+      note: 'At most one alert per commute per day, sent before you leave and only if the odds fall under your threshold.',
     },
     empty: {
       title: 'No commutes yet',
-      body: "Save your regular ride and we'll tell you before you leave whether there'll be a bike — and a dock at the other end.",
+      body: "Save your regular ride and we'll tell you before you leave whether there'll be a bike, and a dock at the other end.",
     },
     days: {
       weekdays: 'Mon–Fri',
@@ -280,7 +278,7 @@ export const COPY = {
   model: {
     title: 'How good are the forecasts?',
     intro:
-      'Every forecast DockCast shows is scored against what actually happened. This page is generated from those scores — nothing here is hand-picked.',
+      'Every forecast DockCast shows is scored against what actually happened. This page is generated from those scores. Nothing is hand-picked.',
     summary: {
       servingNow: 'Serving now',
       activeLearnedModel: 'Active learned model',
@@ -288,7 +286,7 @@ export const COPY = {
       collectorUptime: 'Collector uptime (7 d)',
       lastForecastRun: 'Last forecast run',
       stations: 'Stations',
-      noneYet: 'none yet (baseline serving)',
+      noneYet: 'none yet (flow model serving)',
       activeModelLine: (id: number, trainedFor: string) => `#${id} · trained for ${trainedFor}`,
     },
     explainer: {
@@ -297,26 +295,26 @@ export const COPY = {
       flow: { name: 'Flow model', body: 'a queue model fed by a year of trip history and the weather' },
       learned: {
         name: 'Learned model',
-        body: 'a gradient-boosted model trained on our own snapshots — it only serves if it beats the flow model on held-out days',
+        body: 'a gradient-boosted model trained on our own snapshots; serves only if it beats the flow model on held-out days',
       },
       // SPEC-GAP: ui-spec.md §4.5 item 3 asks for "a 'Shadow' note" without
       // quoting exact text; written to match the doc's plain, factual tone.
       shadow:
-        'Shadow: a candidate learned model scored quietly alongside the active one — it only takes over once it proves itself.',
+        'Shadow: a candidate learned model scored alongside the active one. It takes over only if its scores are better.',
     },
     sliceToggle: { all: 'All stations', atRisk: 'At-risk stations' },
     charts: {
-      brierTitle: 'Brier score by horizon (lower is better) — last 7 days',
+      brierTitle: 'Brier score by horizon (lower is better) · last 7 days',
       brierExplainer:
         'Brier = mean squared error of the probability. 0 is perfect; predicting 50% everywhere scores 0.25.',
-      maeTitle: 'Expected-count error (MAE, bikes) by horizon — last 7 days',
-      reliabilityTitle: 'Calibration — last 7 days',
+      maeTitle: 'Expected-count error (MAE, bikes) by horizon · last 7 days',
+      reliabilityTitle: 'Calibration · last 7 days',
       reliabilityExplainer:
         'If we say 80%, it should happen about 80% of the time. Points on the line are calibrated. ECE summarises the gap.',
       reliabilityTooltip: (predPct: string, obsPct: string, n: number) =>
         `Predicted ${predPct} → happened ${obsPct} (n ${n.toLocaleString()})`,
       perfectLabel: 'perfect',
-      empty: 'No scored forecasts yet — scores appear after the first full day of forecasts.',
+      empty: 'No scored forecasts yet. Scores appear after the first full day of forecasts.',
       nSuffix: (n: number) => `n ${n.toLocaleString()}`,
     },
     tierNames: {

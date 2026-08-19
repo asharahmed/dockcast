@@ -25,7 +25,7 @@ describe('ModelPage', () => {
       await screen.findByRole('heading', { level: 1, name: 'How good are the forecasts?' }),
     ).toBeInTheDocument();
     expect(
-      await screen.findByText('Brier score by horizon (lower is better) — last 7 days'),
+      await screen.findByText('Brier score by horizon (lower is better) · last 7 days'),
     ).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Model versions' })).toBeInTheDocument();
   });
@@ -37,7 +37,7 @@ describe('ModelPage', () => {
     renderPage();
     expect(
       await screen.findByText(
-        'No scored forecasts yet — scores appear after the first full day of forecasts.',
+        'No scored forecasts yet. Scores appear after the first full day of forecasts.',
       ),
     ).toBeInTheDocument();
   });

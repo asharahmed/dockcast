@@ -49,7 +49,7 @@ describe('BrierChart', () => {
   it('renders an empty state when no matching rows exist', () => {
     render(<BrierChart metrics={[]} target="bike" slice="all" />);
     expect(
-      screen.getByText('No scored forecasts yet — scores appear after the first full day of forecasts.'),
+      screen.getByText('No scored forecasts yet. Scores appear after the first full day of forecasts.'),
     ).toBeInTheDocument();
   });
 });

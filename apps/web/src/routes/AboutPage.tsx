@@ -23,29 +23,29 @@ export default function AboutPage() {
       <section className="flex flex-col gap-3">
         <h2 className="text-[length:var(--fs-lg)]">What this is</h2>
         <p className="text-ink-2">
-          DockCast forecasts bike-share station availability at the time you will actually be
-          there — not just what a station looks like right now. Pick a city, check the map, or
-          save a commute and get pushed before you leave.
+          DockCast forecasts bike-share availability for when you'll actually be at the station,
+          not just what it looks like right now. Check the map before you ride, or save a commute
+          and get an alert before you leave.
         </p>
         <p className="text-ink-2">
           It's built on open GBFS station data and each city's own ridership history, with a
-          public page showing exactly how accurate the forecasts have been.
+          public page tracking how accurate the forecasts have been.
         </p>
       </section>
 
       <section className="flex flex-col gap-3">
         <h2 className="text-[length:var(--fs-lg)]">How the forecast works</h2>
         <p className="text-ink-2">
-          Every station reports its live state — bikes, docks, e-bikes — every 60 seconds. That's
+          Every station reports its live state (bikes, docks, e-bikes) every 60 seconds. That's
           the ground truth behind the "now" you see on the map and station pages.
         </p>
         <p className="text-ink-2">
-          For horizons further out, a flow model trained on a year of trip history and weather
-          estimates how each station's bikes and docks are likely to change.
+          Further out, a flow model trained on a year of trip history and the weather estimates
+          how each station fills and empties.
         </p>
         <p className="text-ink-2">
-          Where there's enough data, a learned model trained on our own snapshots takes over — but
-          only once it's been shown to beat the flow model on days it hasn't seen. See{' '}
+          Once there's enough data, a learned model trained on our own snapshots takes over. It
+          has to beat the flow model on days it hasn't seen before it's allowed to serve. See{' '}
           <Link to="/model" className="text-signal underline underline-offset-4">
             how good the forecasts are
           </Link>
