@@ -102,7 +102,9 @@ export function modelRouter(deps: RouteDeps): Router {
       n_stations_active: nStationsActive,
       collector: {
         last_ok_at: collectorLastOkAt ? collectorLastOkAt.toISOString() : null,
-        uptime_7d_pct: uptime7d,
+        // getCollectorUptime7d returns a 0–1 fraction; the wire field is a
+        // percentage (docs/api.md §4), rendered as `<n>%` by the web client.
+        uptime_7d_pct: uptime7d === null ? null : Math.round(uptime7d * 1000) / 10,
       },
       predictor: {
         last_run_at: predictorLastRunAt ? predictorLastRunAt.toISOString() : null,

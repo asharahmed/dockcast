@@ -121,7 +121,7 @@ ModelResponse: {
   city: { slug, name, tz },
   data_since: string|null,                     // min(station_snapshots.ts) — computed nightly into worker_runs summary; fallback query
   n_stations_active: number,
-  collector: { last_ok_at: string|null, uptime_7d_pct: number|null },   // uptime = ok polls / expected polls (one per minute) over the last 7 d, or since the first poll if younger than 7 d; capped at 1
+  collector: { last_ok_at: string|null, uptime_7d_pct: number|null },   // percent 0-100 (1 decimal): ok polls / expected polls (one per minute) over the last 7 d, or since the first poll if younger than 7 d; capped at 100
   predictor: { last_run_at: string|null, serving_tier: 'gbm'|'bd_cal'|'bd_raw'|'none' },
   active: { gbm: ModelVersionSummary|null, bd: ModelVersionSummary|null },
   metrics: [{ day, window_days, tier, target, horizon, slice, metric, value, n }],  // all rows for the latest `day` present; metric names: brier, logloss, auc, ece, mae, rmse, n, and reliability bins rel_bin_<0..9>_{mean_pred,frac_pos,n} (horizon 0 = pooled)
