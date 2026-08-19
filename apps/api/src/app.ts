@@ -30,6 +30,7 @@ export function createApp(deps: AppDeps): Express {
     now: deps.now ?? ((): Date => new Date()),
     logger: deps.logger,
     pushTransport: deps.pushTransport ?? createWebPushTransport(deps.config),
+    fetchImpl: deps.fetchImpl ?? fetch,
   };
 
   const app = express();

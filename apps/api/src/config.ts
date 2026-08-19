@@ -58,6 +58,10 @@ const envSchema = z.object({
   LOG_LEVEL: z.string().min(1).default('info'),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   TRUST_PROXY: trustProxySchema,
+  // OAuth sign-in is optional: with these unset, /auth/providers reports
+  // google: false and the OAuth routes 404 (docs/api.md §5).
+  GOOGLE_CLIENT_ID: z.string().min(1).optional(),
+  GOOGLE_CLIENT_SECRET: z.string().min(1).optional(),
 });
 
 export interface Config {
@@ -75,6 +79,9 @@ export interface Config {
   logLevel: string;
   nodeEnv: 'development' | 'production' | 'test';
   trustProxy: string | number | boolean;
+  /** Both set → Google sign-in enabled. */
+  googleClientId: string | null;
+  googleClientSecret: string | null;
 }
 
 /**
@@ -106,5 +113,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     logLevel: data.LOG_LEVEL,
     nodeEnv: data.NODE_ENV,
     trustProxy: data.TRUST_PROXY,
+    googleClientId: data.GOOGLE_CLIENT_ID ?? null,
+    googleClientSecret: data.GOOGLE_CLIENT_SECRET ?? null,
   };
 }

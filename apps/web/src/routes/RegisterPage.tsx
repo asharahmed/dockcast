@@ -10,6 +10,7 @@ import { useMe, useRegister } from '../api/queries.js';
 import { ApiError } from '../api/client.js';
 import { COPY } from '../lib/constants.js';
 import { useDocumentTitle } from '../hooks/useDocumentTitle.js';
+import { OAuthButtons } from '../components/shell/OAuthButtons.js';
 
 export default function RegisterPage() {
   useDocumentTitle('Create account · DockCast');
@@ -88,6 +89,8 @@ export default function RegisterPage() {
           {COPY.auth_pages.registerButton}
         </Button>
       </form>
+
+      <OAuthButtons next={nextPath} />
 
       <Link to="/login" className="text-[length:var(--fs-sm)] text-signal underline underline-offset-4">
         {COPY.auth_pages.toSignIn}

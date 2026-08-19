@@ -303,6 +303,12 @@ VAPID_PUBLIC_KEY=                               # npx web-push generate-vapid-ke
 VAPID_PRIVATE_KEY=
 VAPID_SUBJECT=mailto:ashar@aahmed.ca
 LOG_LEVEL=info
+GOOGLE_CLIENT_ID=                               # optional; both set -> "Continue with Google" appears.
+GOOGLE_CLIENT_SECRET=                           # Google Cloud console -> APIs & Services -> Credentials ->
+                                                # OAuth client (Web application); authorized redirect URI:
+                                                # ${PUBLIC_BASE_URL}/api/v1/auth/google/callback
+                                                # (https required except localhost -> unusable on the
+                                                # Tailscale-IP proving deploy; works on localhost + prod TLS)
 
 # --- collector ---
 POLL_INTERVAL_MS=60000

@@ -63,7 +63,12 @@ import {
   tripLegSchema,
   tripResponseSchema,
 } from './api/trip.js';
-import { registerRequestSchema, loginRequestSchema, userResponseSchema } from './api/auth.js';
+import {
+  registerRequestSchema,
+  loginRequestSchema,
+  userResponseSchema,
+  authProvidersResponseSchema,
+} from './api/auth.js';
 import {
   daysOfWeekSchema,
   commuteSchema,
@@ -136,6 +141,7 @@ export const schemas = {
   registerRequest: registerRequestSchema,
   loginRequest: loginRequestSchema,
   userResponse: userResponseSchema,
+  authProvidersResponse: authProvidersResponseSchema,
 
   daysOfWeek: daysOfWeekSchema,
   commute: commuteSchema,

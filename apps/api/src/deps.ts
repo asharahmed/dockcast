@@ -19,6 +19,8 @@ export interface AppDeps {
   now?: () => Date;
   logger: Logger;
   pushTransport?: PushTransport;
+  /** Outbound HTTP for OAuth token exchange; defaults to global `fetch` — tests inject a fake. */
+  fetchImpl?: typeof fetch;
 }
 
 /** What route factories receive: `AppDeps` with `now`/`pushTransport` resolved to concrete values. */
@@ -28,4 +30,5 @@ export interface RouteDeps {
   now: () => Date;
   logger: Logger;
   pushTransport: PushTransport;
+  fetchImpl: typeof fetch;
 }

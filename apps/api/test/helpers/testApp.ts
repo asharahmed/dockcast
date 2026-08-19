@@ -37,7 +37,7 @@ function testEnv(databaseUrl: string, overrides: Record<string, string>): NodeJS
 
 export async function setupTestApp(
   envOverrides: Record<string, string> = {},
-  appOverrides: { pushTransport?: PushTransport } = {},
+  appOverrides: { pushTransport?: PushTransport; fetchImpl?: typeof fetch } = {},
 ): Promise<TestContext> {
   if (!DATABASE_URL_TEST) {
     throw new Error('DATABASE_URL_TEST must be set to run apps/api tests');
@@ -55,6 +55,7 @@ export async function setupTestApp(
     now: () => FIXED_NOW,
     logger,
     pushTransport: appOverrides.pushTransport,
+    fetchImpl: appOverrides.fetchImpl,
   });
 
   return {

@@ -23,3 +23,10 @@ export const userResponseSchema = z.object({
   }),
 });
 export type UserResponse = z.infer<typeof userResponseSchema>;
+
+/** `GET /auth/providers` — which OAuth sign-in options this deployment has configured. */
+export const authProvidersResponseSchema = z.object({
+  google: z.boolean(),
+  apple: z.boolean(),
+});
+export type AuthProvidersResponse = z.infer<typeof authProvidersResponseSchema>;

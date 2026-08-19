@@ -16,6 +16,7 @@ import type {
   StationDetailResponse,
   StationHistoryResponse,
   UserResponse,
+  AuthProvidersResponse,
   HealthResponse,
   LoginRequest,
   RegisterRequest,
@@ -42,6 +43,7 @@ export const queryKeys = {
   station: (id: number) => ['station', id] as const,
   stationHistory: (id: number, hours: number) => ['station-history', id, hours] as const,
   me: ['me'] as const,
+  authProviders: ['auth-providers'] as const,
   health: ['health'] as const,
   trip: (origin: number, dest: number, departAtMinute: number | null, rideMinutes: number | null) =>
     ['trip', origin, dest, departAtMinute, rideMinutes] as const,
@@ -121,6 +123,15 @@ export function useMe() {
       }
     },
     retry: false,
+  });
+}
+
+/** `GET /auth/providers` — which OAuth buttons to show; config-derived, so cached hard. */
+export function useAuthProviders() {
+  return useQuery({
+    queryKey: queryKeys.authProviders,
+    queryFn: () => apiGet<AuthProvidersResponse>('/auth/providers', schemas.authProvidersResponse),
+    staleTime: Infinity,
   });
 }
 

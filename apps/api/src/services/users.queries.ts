@@ -7,7 +7,7 @@ import { maybeOne, none, one } from '@dockcast/db';
 export interface UserRow {
   id: string;
   email: string;
-  password_hash: string;
+  password_hash: string | null;
   created_at: Date;
   last_login_at: Date | null;
 }
@@ -29,10 +29,11 @@ export async function findUserById(pool: Pool, id: string): Promise<UserRow | nu
   );
 }
 
+/** `passwordHash` null → OAuth-provisioned user with no password login. */
 export async function createUser(
   pool: Pool,
   email: string,
-  passwordHash: string,
+  passwordHash: string | null,
 ): Promise<UserRow> {
   return one<UserRow>(
     pool,

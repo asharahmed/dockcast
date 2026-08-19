@@ -10,6 +10,7 @@ import { useMe, useLogin } from '../api/queries.js';
 import { ApiError } from '../api/client.js';
 import { COPY } from '../lib/constants.js';
 import { useDocumentTitle } from '../hooks/useDocumentTitle.js';
+import { OAuthButtons } from '../components/shell/OAuthButtons.js';
 
 function errorMessage(err: unknown): string {
   if (err instanceof ApiError) {
@@ -29,6 +30,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
 
   const nextPath = searchParams.get('next') ?? '/commutes';
+  const oauthFailed = searchParams.get('oauth') === 'failed';
 
   useEffect(() => {
     if (me) navigate(nextPath, { replace: true });
@@ -49,10 +51,10 @@ export default function LoginPage() {
         <p className="text-ink-2">{COPY.auth_pages.subtitle}</p>
       </div>
 
-      {login.isError && (
+      {(login.isError || oauthFailed) && (
         <p className="wash-critical flex items-center gap-2 rounded-[var(--r-1)] px-3 py-2 text-[length:var(--fs-sm)] text-[color:var(--st-critical-text)]">
           <Icon name="alert" size={16} />
-          {errorMessage(login.error)}
+          {login.isError ? errorMessage(login.error) : COPY.auth_pages.errors.oauthFailed}
         </p>
       )}
 
@@ -82,6 +84,8 @@ export default function LoginPage() {
           {COPY.auth_pages.signInButton}
         </Button>
       </form>
+
+      <OAuthButtons next={nextPath} />
 
       <Link to="/register" className="text-[length:var(--fs-sm)] text-signal underline underline-offset-4">
         {COPY.auth_pages.toRegister}

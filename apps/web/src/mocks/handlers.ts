@@ -47,6 +47,8 @@ export const handlers = [
 
   http.get('/api/v1/stations/:id/history', () => HttpResponse.json(stationHistoryResponseFixture)),
 
+  http.get('/api/v1/auth/providers', () => HttpResponse.json({ google: true, apple: false })),
+
   http.get('/api/v1/auth/me', () => {
     if (!signedIn) {
       return HttpResponse.json(

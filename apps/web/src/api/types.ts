@@ -41,6 +41,7 @@ export type {
   RegisterRequest,
   LoginRequest,
   UserResponse,
+  AuthProvidersResponse,
   DaysOfWeek,
   Commute,
   CommuteOutlookLeg,

@@ -143,10 +143,13 @@ export const COPY = {
     toRegister: 'New here? Create an account',
     toSignIn: 'Have an account? Sign in',
     passwordHint: 'At least 10 characters',
+    orDivider: 'or',
+    continueWithGoogle: 'Continue with Google',
     errors: {
       badCredentials: "That email and password don't match.",
       emailTaken: 'That email is already registered. Sign in instead.',
       rateLimited: 'Too many attempts. Try again in a few minutes.',
+      oauthFailed: "Couldn't sign in with Google. Try again.",
     },
   },
   about: {
