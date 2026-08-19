@@ -49,6 +49,14 @@ export function createApp(deps: AppDeps): Express {
   // fetches to the OpenFreeMap basemap (tiles.openfreemap.org: style JSON, vector tiles,
   // sprites, glyphs) and its web worker; ui-spec.md explicitly allows these as the only
   // non-API external requests. See WP-12 final report.
+  //
+  // When the canonical origin is plain http (e.g. the Tailscale proving deployment at
+  // http://100.x.y.z:8088), helmet's default `upgrade-insecure-requests` rewrites every
+  // subresource fetch — including same-origin /assets/*.js — to https://, which nothing
+  // serves there, so the SPA white-screens; localhost is exempt as a trustworthy origin,
+  // which is why local smoke tests never hit this. HSTS over plain http is likewise
+  // meaningless. Emit both only when publicBaseUrl is https.
+  const servesHttps = deps.config.publicBaseUrl.startsWith('https:');
   app.use(
     helmet({
       contentSecurityPolicy: {
@@ -57,8 +65,10 @@ export function createApp(deps: AppDeps): Express {
           'connect-src': ["'self'", 'https://tiles.openfreemap.org'],
           'img-src': ["'self'", 'data:', 'https://tiles.openfreemap.org'],
           'worker-src': ["'self'", 'blob:'],
+          ...(servesHttps ? {} : { 'upgrade-insecure-requests': null }),
         },
       },
+      ...(servesHttps ? {} : { strictTransportSecurity: false }),
     }),
   );
   app.use(requireFetchHeader);
