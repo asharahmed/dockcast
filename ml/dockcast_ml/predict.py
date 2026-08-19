@@ -160,6 +160,10 @@ def _needs_context_reload(state: PredictState, station_pks: np.ndarray, t0: date
         return True
     if not np.array_equal(state.station_pks_cached, station_pks):
         return True
+    # No usable rates at all (e.g. the predictor started before `bootstrap` ran): retry every
+    # cycle instead of serving `no_rates` for the whole reload interval.
+    if state.rates_ok is not None and not bool(np.any(state.rates_ok)):
+        return True
     return (t0 - state.rates_loaded_at) >= _RATES_RELOAD_INTERVAL
 
 
