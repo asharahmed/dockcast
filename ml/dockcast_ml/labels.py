@@ -105,6 +105,12 @@ def materialise_labels(conn: psycopg.Connection, city: dict[str, Any], now: date
 
         out = labelled[_LABEL_COLS].copy()
         with conn.transaction(), conn.cursor() as cur:
+            # On an autocommit=False connection this `conn.transaction()` is a
+            # SAVEPOINT inside the caller's long-lived implicit transaction, so
+            # `ON COMMIT DROP` doesn't fire between loop iterations — the second
+            # day's CREATE then hits "tmp_labels already exists" (first seen on
+            # proving-week day 1, the first run with >1 day of labels).
+            cur.execute("DROP TABLE IF EXISTS tmp_labels")
             cur.execute("CREATE TEMP TABLE tmp_labels (LIKE forecast_labels) ON COMMIT DROP")
             db.copy_df(cur, "tmp_labels", out)
             cur.execute(
