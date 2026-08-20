@@ -57,6 +57,8 @@ export interface StationDetailRow {
   city_slug: string;
   city_name: string;
   city_tz: string;
+  city_holiday_country: string;
+  city_holiday_subdiv: string | null;
 }
 
 export async function getStationDetail(
@@ -66,7 +68,8 @@ export async function getStationDetail(
   return maybeOne<StationDetailRow>(
     pool,
     `SELECT s.id, s.station_id, s.name, s.lat, s.lon, s.capacity, s.city_id,
-            c.slug AS city_slug, c.name AS city_name, c.tz AS city_tz
+            c.slug AS city_slug, c.name AS city_name, c.tz AS city_tz,
+            c.holiday_country AS city_holiday_country, c.holiday_subdiv AS city_holiday_subdiv
      FROM stations s JOIN cities c ON c.id = s.city_id
      WHERE s.id = $1`,
     [stationPk],

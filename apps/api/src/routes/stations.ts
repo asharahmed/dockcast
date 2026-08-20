@@ -15,7 +15,7 @@ import type { RouteDeps } from '../deps.js';
 import { sendJson } from '../lib/respond.js';
 import { notFound } from '../middleware/errors.js';
 import { parseIntParam, parseQuery } from '../lib/validate.js';
-import { dayTypeOf } from '../forecast/holidays.js';
+import { dayTypeOf, getHolidaySet } from '../forecast/holidays.js';
 import {
   getStationDetail,
   getStationCurrent,
@@ -40,7 +40,12 @@ export function stationsRouter(deps: RouteDeps): Router {
     if (!station) throw notFound(`Unknown station: ${req.params.id}`);
 
     const now = deps.now();
-    const dayType = dayTypeOf(now, station.city_tz);
+    const holidays = await getHolidaySet(
+      deps.pool,
+      station.city_holiday_country,
+      station.city_holiday_subdiv,
+    );
+    const dayType = dayTypeOf(now, station.city_tz, holidays);
 
     const [current, forecastRows, typicalRows, neighborRows, historyRows] = await Promise.all([
       getStationCurrent(deps.pool, stationPk),

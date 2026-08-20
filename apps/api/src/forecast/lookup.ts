@@ -19,7 +19,7 @@ import {
   localParts,
   type LegKind,
 } from '@dockcast/shared';
-import { dayTypeOf } from './holidays.js';
+import { dayTypeOf, getHolidaySet } from './holidays.js';
 
 export type LookupTarget = 'bike' | 'dock';
 
@@ -89,8 +89,9 @@ async function typicalLookup(
   target: LookupTarget,
   at: Date,
   tzName: string,
+  holidays: ReadonlySet<string>,
 ): Promise<Pick<LookupResult, 'kind' | 'p' | 'exp_bikes' | 'tier' | 'reason'>> {
-  const dayType = dayTypeOf(at, tzName);
+  const dayType = dayTypeOf(at, tzName, holidays);
   const bucket = bucketOf(localParts(at, tzName).minuteOfDay);
 
   const row = await maybeOne<{ p_bike: number | null; p_dock: number | null }>(
@@ -120,9 +121,14 @@ export async function lookup(
   const { stationPk, target, at, now } = args;
   const leadMinutes = (at.getTime() - now.getTime()) / 60_000;
 
-  const stationRow = await maybeOne<{ tz: string }>(
+  const stationRow = await maybeOne<{
+    tz: string;
+    holiday_country: string;
+    holiday_subdiv: string | null;
+  }>(
     pool,
-    `SELECT c.tz FROM stations s JOIN cities c ON c.id = s.city_id WHERE s.id = $1`,
+    `SELECT c.tz, c.holiday_country, c.holiday_subdiv
+     FROM stations s JOIN cities c ON c.id = s.city_id WHERE s.id = $1`,
     [stationPk],
   );
   if (!stationRow) {
@@ -140,7 +146,8 @@ export async function lookup(
   const current = await getCurrent(pool, stationPk);
 
   if (leadMinutes > MAX_LEAD) {
-    const result = await typicalLookup(pool, stationPk, target, at, stationRow.tz);
+    const holidays = await getHolidaySet(pool, stationRow.holiday_country, stationRow.holiday_subdiv);
+    const result = await typicalLookup(pool, stationPk, target, at, stationRow.tz, holidays);
     return { ...result, leadMinutes, current };
   }
 

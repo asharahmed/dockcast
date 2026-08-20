@@ -64,6 +64,7 @@ export const COPY = {
       docks: 'Chance of finding an empty dock',
     },
     stale: (n: number) => `Forecasts are ${n} min old. The predictor may be catching up.`,
+    cityLabel: 'City',
     searchPlaceholder: 'Find a station…',
     searchLabel: 'Search stations',
     noMatch: (q: string) => `No station matches "${q}"`,

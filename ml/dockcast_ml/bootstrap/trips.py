@@ -6,8 +6,9 @@ file-like object — anything `pandas.read_csv` accepts) rather than the single
 signature generalisation (not a change to the parsing/aggregation math) that
 lets tests inject `fixtures/trips/*.csv` directly without a network call or a
 real zip archive, per the WP-4 task brief ("an injectable file provider").
-Production zip handling lives in `iter_trip_chunks_from_zip`, which opens each
-CSV member of the downloaded zip and delegates to `iter_trip_chunks`.
+Zip handling lives in `iter_trip_chunks_from_zip`; discovery/download of the
+actual published dumps lives in `bootstrap/trip_sources/` adapters, selected
+by `cities.trip_source` (docs/add-a-city.md).
 """
 
 from __future__ import annotations
@@ -23,7 +24,6 @@ from pathlib import Path
 from typing import IO
 from zoneinfo import ZoneInfo
 
-import httpx
 import numpy as np
 import pandas as pd
 import psycopg
@@ -32,42 +32,10 @@ from dockcast_ml import db
 from dockcast_ml.config import Config
 from dockcast_ml.timeutil import day_type_array, holiday_set, local_midnight
 
-CKAN = "https://ckan0.cf.opendata.inter.prod-toronto.ca/api/3/action/package_show?id=bike-share-toronto-ridership-data"
 COLS = ["Start_Station_Id", "Start_Time", "End_Station_Id", "End_Time"]
 CHUNK_SIZE = 200_000
 
 CsvSource = str | Path | IO[str] | IO[bytes]
-
-
-def resource_urls(years: list[int]) -> dict[int, str]:
-    """CKAN resources whose name == f"bikeshare-ridership-{y}.zip", keyed by year."""
-    resp = httpx.get(CKAN, timeout=30)
-    resp.raise_for_status()
-    payload = resp.json()
-    resources = payload["result"]["resources"]
-    urls: dict[int, str] = {}
-    for year in years:
-        name = f"bikeshare-ridership-{year}.zip"
-        match = next((r for r in resources if r.get("name") == name), None)
-        if match is None:
-            raise ValueError(f"CKAN resource not found: {name}")
-        urls[year] = match["url"]
-    return urls
-
-
-def download(url: str, dest: Path) -> Path:
-    """Stream `url` to `dest` (skip if it already exists and is non-empty)."""
-    if dest.exists() and dest.stat().st_size > 0:
-        return dest
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    part = dest.with_suffix(dest.suffix + ".part")
-    with httpx.stream("GET", url, timeout=60, follow_redirects=True) as resp:
-        resp.raise_for_status()
-        with part.open("wb") as fh:
-            for chunk in resp.iter_bytes():
-                fh.write(chunk)
-    part.rename(dest)
-    return dest
 
 
 def _month_to_end(month_to: date) -> date:
@@ -276,23 +244,18 @@ def run(
     if csv_sources is not None:
         chunks: Iterator[pd.DataFrame] = iter_trip_chunks(csv_sources, month_from, month_to, tz)
     else:
-        years = sorted({month_from.year, month_to.year})
-        urls = resource_urls(years)
-        zip_paths: list[Path] = []
-        for year in years:
-            dest = cache_dir / f"bikeshare-ridership-{year}.zip"
-            if skip_download:
-                if not dest.exists():
-                    raise FileNotFoundError(f"--skip-download but missing cache file: {dest}")
-                zip_paths.append(dest)
-            else:
-                zip_paths.append(download(urls[year], dest))
+        # Local import: trip_sources adapters import this module's parsers.
+        from dockcast_ml.bootstrap import trip_sources
 
-        def _chain() -> Iterator[pd.DataFrame]:
-            for zip_path in zip_paths:
-                yield from iter_trip_chunks_from_zip(zip_path, month_from, month_to, tz)
-
-        chunks = _chain()
+        source_cfg = dict(city.get("trip_source") or {})
+        adapter_name = source_cfg.pop("adapter", None)
+        if not adapter_name:
+            raise ValueError(
+                f"city {city.get('slug')!r} has no trip_source.adapter configured; "
+                "see docs/add-a-city.md"
+            )
+        adapter = trip_sources.get_adapter(adapter_name)
+        chunks = adapter(city, source_cfg, month_from, month_to, cache_dir, skip_download)
 
     hol_years = range(month_from.year, month_to.year + 1)
     hol = holiday_set(city["holiday_country"], city["holiday_subdiv"], hol_years)

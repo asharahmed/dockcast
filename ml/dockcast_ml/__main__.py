@@ -16,10 +16,12 @@ from typing import Any
 
 import numpy as np
 
+from dockcast_ml import add_city as add_city_mod
 from dockcast_ml import (
     config,
     db,
     gbfs_ids,
+    holiday_calendar,
     logging_setup,
     metrics_online,
     neighbors,
@@ -71,6 +73,17 @@ def build_parser() -> argparse.ArgumentParser:
     neighbors_parser = subparsers.add_parser("neighbors")
     neighbors_parser.add_argument("--city", metavar="SLUG")
 
+    add_city = subparsers.add_parser("add-city", help="register a city from its GBFS feed")
+    add_city.add_argument("--slug", required=True)
+    add_city.add_argument("--gbfs-url", required=True, metavar="URL")
+    add_city.add_argument("--country-code", required=True, metavar="CC")
+    add_city.add_argument("--holiday-country", required=True, metavar="CC")
+    add_city.add_argument("--holiday-subdiv", metavar="SUBDIV")
+    add_city.add_argument("--name", help="override the feed's system name")
+    add_city.add_argument("--tz", help="override the feed's timezone")
+    add_city.add_argument("--trip-adapter", metavar="NAME", help="trip-source adapter (e.g. generic_csv)")
+    add_city.add_argument("--trip-config", metavar="JSON", help="adapter config as a JSON object")
+
     return parser
 
 
@@ -115,6 +128,29 @@ def _cmd_neighbors(cfg: config.Config, args: argparse.Namespace) -> int:
         for city in _cities_for(conn, args.city):
             with db.worker_run(cfg, "neighbors", city["id"]) as summary:
                 summary.update(neighbors.rebuild(conn, city["id"]))
+        return 0
+    finally:
+        conn.close()
+
+
+def _cmd_add_city(cfg: config.Config, args: argparse.Namespace) -> int:
+    conn = db.connect(cfg, autocommit=True)
+    try:
+        summary = add_city_mod.run(
+            conn,
+            {
+                "slug": args.slug,
+                "gbfs_url": args.gbfs_url,
+                "country_code": args.country_code,
+                "holiday_country": args.holiday_country,
+                "holiday_subdiv": args.holiday_subdiv,
+                "name": args.name,
+                "tz": args.tz,
+                "trip_adapter": args.trip_adapter,
+                "trip_config": args.trip_config,
+            },
+        )
+        logger.info("city added", extra={"summary": summary})
         return 0
     finally:
         conn.close()
@@ -179,6 +215,7 @@ def _cmd_train(cfg: config.Config, args: argparse.Namespace) -> int:
             target_date = date.fromisoformat(args.date) if args.date else datetime.now(UTC).astimezone(tz).date()
             now = datetime.now(UTC)
             with db.worker_run(cfg, "train", city_id) as summary:
+                summary["holiday_rows"] = holiday_calendar.refresh(conn, [city])
                 summary.update(train.train_city(cfg, conn, city, target_date, now))
         conn.commit()
         return 0
@@ -224,7 +261,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.t0 is not None and not args.once:
             parser.error("--t0 is only valid with --once")
 
-    if args.command not in ("bootstrap", "neighbors", "predict", "profile", "train", "labels", "metrics"):
+    if args.command not in ("bootstrap", "neighbors", "predict", "profile", "train", "labels", "metrics", "add-city"):
         print(f"dockcast_ml {args.command}: not implemented", file=sys.stderr)
         return 2
 
@@ -234,6 +271,8 @@ def main(argv: list[str] | None = None) -> int:
     try:
         if args.command == "bootstrap":
             return _cmd_bootstrap(cfg, args)
+        if args.command == "add-city":
+            return _cmd_add_city(cfg, args)
         if args.command == "neighbors":
             return _cmd_neighbors(cfg, args)
         if args.command == "predict":

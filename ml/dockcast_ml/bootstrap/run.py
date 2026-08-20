@@ -12,7 +12,7 @@ from zoneinfo import ZoneInfo
 import httpx
 import psycopg
 
-from dockcast_ml import db, gbfs_ids, neighbors, rates, weather_glm
+from dockcast_ml import db, gbfs_ids, holiday_calendar, neighbors, rates, weather_glm
 from dockcast_ml.bootstrap import trips, weather_history
 from dockcast_ml.config import Config
 from dockcast_ml.timeutil import holiday_set
@@ -39,6 +39,8 @@ def run_bootstrap(
         stations = gbfs_ids.load_stations(conn, city["id"], active_only=False)
         if stations.empty:
             raise RuntimeError("run the collector first: no stations for city")
+
+        summary["holiday_rows"] = holiday_calendar.refresh(conn, [city])
 
         hol_years = range(month_from.year, month_to.year + 1)
         hol = holiday_set(city["holiday_country"], city["holiday_subdiv"], hol_years)
@@ -78,5 +80,12 @@ def run_bootstrap(
 
         neighbors_result = neighbors.rebuild(conn, city["id"])
         summary["neighbors"] = neighbors_result
+
+        # Rates + GLM + profile inputs all exist now: the predictor can serve
+        # this city, so flip it on (docs/add-a-city.md step 4).
+        with conn.cursor() as cur:
+            cur.execute("UPDATE cities SET forecasting_enabled=true WHERE id=%s", (city["id"],))
+        conn.commit()
+        summary["forecasting_enabled"] = True
 
         return summary

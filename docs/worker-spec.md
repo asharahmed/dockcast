@@ -66,9 +66,16 @@ profile    [--city SLUG] [--date YYYY-MM-DD]                    # station_tod_pr
 labels     [--city SLUG]                                        # materialise forecast_labels
 metrics    [--city SLUG] [--date YYYY-MM-DD]                    # model_metrics_daily for date (default: today local)
 neighbors  [--city SLUG]
+add-city   --slug SLUG --gbfs-url URL --country-code CC --holiday-country CC
+           [--holiday-subdiv SUBDIV] [--name NAME] [--tz TZ]
+           [--trip-adapter NAME] [--trip-config JSON]
+           # registers a city from its GBFS feed (docs/add-a-city.md): name/tz/centroid
+           # read from system_information + station_information; inserts with
+           # forecasting_enabled=false; refreshes holiday_calendar for the region
 ```
 No `--city` ⇒ all cities with `forecasting_enabled` (predict/train/profile/labels/metrics/neighbors) —
 `bootstrap` requires `--city`. Exit code 0 on success, 1 on failure (exception logged as one JSON line).
+`bootstrap` flips `forecasting_enabled=true` on success; `train` refreshes `holiday_calendar` nightly.
 
 ---------------------------------------------------------------------------
 
@@ -196,16 +203,29 @@ Boundaries in `(t0, t0+120]`: `{t0 + h for h in HORIZONS}` ∪ local 15-min buck
 
 ## 4. Bootstrap (`bootstrap/*`, `rates.py`, `weather_glm.py`, `neighbors.py`)
 
+### 4.0 `bootstrap/trip_sources/` — per-city trip-history adapters
+
+Which adapter a city uses comes from `cities.trip_source` (jsonb, migration
+0004): `{"adapter": "<name>", ...adapter config}`. An adapter is
+`fetch_chunks(city, source_cfg, month_from, month_to, cache_dir, skip_download)`
+yielding normalized pandas chunks (`start_id`/`end_id` str matching GBFS
+`stations.station_id`; `start_ts`/`end_ts` naive local datetimes; ml-spec §1.5
+drop rules already applied; `attrs` n_in/n_dropped). Registered adapters:
+`toronto_ckan` (CKAN discovery + PBSC CSV schema — the §4.1 parser) and
+`generic_csv` (config-driven columns/format/tz — docs/add-a-city.md §3).
+`trips.run` dispatches; its `csv_sources` test seam bypasses adapters with the
+Toronto-schema parser.
+
 ### 4.1 `bootstrap/trips.py` (ml-spec §1.5)
 ```python
-CKAN = "https://ckan0.cf.opendata.inter.prod-toronto.ca/api/3/action/package_show?id=bike-share-toronto-ridership-data"
-COLS = ["Start_Station_Id","Start_Time","End_Station_Id","End_Time"]
-def resource_urls(years: list[int]) -> dict[int, str]      # from CKAN json: resources whose name == f"bikeshare-ridership-{y}.zip"
-def download(url, dest: Path) -> Path                        # skip if exists and size>0; stream to .part then rename
-def iter_trip_chunks(zip_path: Path, month_from: date, month_to: date, tz) -> Iterator[pd.DataFrame]
+COLS = ["Start_Station_Id","Start_Time","End_Station_Id","End_Time"]   # Toronto/PBSC CSV schema
+def iter_trip_chunks(csv_sources, month_from: date, month_to: date, tz) -> Iterator[pd.DataFrame]
+def iter_trip_chunks_from_zip(zip_path: Path, month_from: date, month_to: date, tz) -> Iterator[pd.DataFrame]
 def aggregate(chunks, tz, hol) -> TripAgg
-def write_agg(conn, city_id, agg: TripAgg, window: tuple[date,date]) -> None
-def run(cfg, conn, city, month_from: date, month_to: date, cache_dir: Path, skip_download=False) -> dict
+def write_agg(conn, city_id, agg: TripAgg, window: tuple[date,date], tz) -> None
+def run(cfg, conn, city, month_from: date, month_to: date, cache_dir: Path, skip_download=False, csv_sources=None) -> dict
+# CKAN discovery + `download` moved to trip_sources/toronto_ckan.py (§4.0);
+# run() dispatches on cities.trip_source.adapter unless the csv_sources test seam is given.
 ```
 `iter_trip_chunks`: for every `*.csv` member of the zip: `pd.read_csv(fh, usecols=COLS, dtype=str, chunksize=200_000, encoding='utf-8', encoding_errors='replace')`. Missing column ⇒ `ValueError("unexpected header ...")` (fail loudly). Per chunk:
 1. `n_in = len(chunk)`; strip; empty → NaN.

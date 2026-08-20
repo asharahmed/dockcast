@@ -34,6 +34,8 @@ describe.skipIf(!DATABASE_URL_TEST)('migrate() against a throwaway database', ()
     expect(applied).toEqual([
       { version: 1, name: 'init' },
       { version: 2, name: 'model_eval_tier' },
+      { version: 3, name: 'auth_identities' },
+      { version: 4, name: 'multi_city' },
     ]);
 
     const tables = await many<{ table_name: string }>(
@@ -110,9 +112,11 @@ describe.skipIf(!DATABASE_URL_TEST)('migrate() concurrency', () => {
     expect(combinedApplied).toEqual([
       { version: 1, name: 'init' },
       { version: 2, name: 'model_eval_tier' },
+      { version: 3, name: 'auth_identities' },
+      { version: 4, name: 'multi_city' },
     ]);
 
     const count = await one<CountRow>(poolA, 'SELECT count(*)::int AS n FROM schema_migrations');
-    expect(count.n).toBe(2);
+    expect(count.n).toBe(4);
   });
 });
