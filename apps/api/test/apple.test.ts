@@ -136,3 +136,65 @@ describe('Apple sign-in flow', () => {
     expect(res.status).toBe(404);
   });
 });
+
+describe('cross-provider email collision', () => {
+  let ctx: TestContext;
+  let googleNonce = '';
+  let appleNonce = '';
+
+  beforeAll(async () => {
+    ctx = await setupTestApp(
+      { ...APPLE_ENV, GOOGLE_CLIENT_ID: 'test-client-id', GOOGLE_CLIENT_SECRET: 'test-secret' },
+      {
+        fetchImpl: (async (url: unknown) => {
+          const isApple = String(url) === APPLE_TOKEN_URL;
+          const claims = {
+            iss: isApple ? 'https://appleid.apple.com' : 'https://accounts.google.com',
+            aud: isApple ? 'ca.aahmed.dockcast.web' : 'test-client-id',
+            sub: isApple ? 'apple-sub-shared' : 'google-sub-shared',
+            exp: Math.floor(FIXED_NOW.getTime() / 1000) + 3600,
+            nonce: isApple ? appleNonce : googleNonce,
+            email: 'same-rider@example.com',
+            email_verified: true,
+          };
+          return new Response(JSON.stringify({ id_token: fakeIdToken(claims) }), { status: 200 });
+        }) as typeof fetch,
+      },
+    );
+  }, 60_000);
+  afterAll(async () => {
+    await ctx.teardown();
+  });
+
+  it('same verified email from both providers merges into one account', async () => {
+    const g = await request(ctx.app).get('/api/v1/auth/google');
+    const gUrl = new URL(g.headers.location as string);
+    googleNonce = gUrl.searchParams.get('nonce') as string;
+    const gCb = await request(ctx.app).get(
+      `/api/v1/auth/google/callback?code=x&state=${gUrl.searchParams.get('state')}`,
+    );
+    expect(gCb.status).toBe(303);
+
+    const a = await request(ctx.app).get('/api/v1/auth/apple');
+    const aUrl = new URL(a.headers.location as string);
+    appleNonce = aUrl.searchParams.get('nonce') as string;
+    const aCb = await request(ctx.app)
+      .post('/api/v1/auth/apple/callback')
+      .type('form')
+      .send({ code: 'y', state: aUrl.searchParams.get('state') });
+    expect(aCb.status).toBe(303);
+
+    const users = await ctx.pool.query(
+      `SELECT id FROM users WHERE email = 'same-rider@example.com'`,
+    );
+    expect(users.rowCount).toBe(1);
+    const idents = await ctx.pool.query(
+      `SELECT provider, subject FROM auth_identities WHERE user_id = $1 ORDER BY provider`,
+      [users.rows[0].id],
+    );
+    expect(idents.rows).toEqual([
+      { provider: 'apple', subject: 'apple-sub-shared' },
+      { provider: 'google', subject: 'google-sub-shared' },
+    ]);
+  });
+});
