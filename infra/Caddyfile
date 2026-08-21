@@ -12,6 +12,10 @@
 		# resolver for any lookups the solver still makes.
 		resolvers 1.1.1.1
 		propagation_timeout -1
+		# With the self-check skipped, validation raced Cloudflare's authoritative
+		# propagation and the CA saw "no TXT record" ~1s after creation (verified by
+		# watching the record appear in the zone mid-attempt). Fixed wait instead.
+		propagation_delay 15s
 	}
 }
 
