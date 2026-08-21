@@ -51,14 +51,15 @@ export function createApp(deps: AppDeps): Express {
   // sprites, glyphs) and its web worker; ui-spec.md explicitly allows these as the only
   // non-API external requests. See WP-12 final report.
   //
-  // When the canonical origin is plain http (e.g. the Tailscale proving deployment at
-  // http://100.x.y.z:8088), helmet's default `upgrade-insecure-requests` rewrites every
-  // subresource fetch — including same-origin /assets/*.js — to https://, which nothing
-  // serves there, so the SPA white-screens; localhost is exempt as a trustworthy origin,
-  // which is why local smoke tests never hit this. HSTS over plain http is likewise
-  // meaningless. Emit both only when publicBaseUrl is https.
-  const servesHttps = deps.config.publicBaseUrl.startsWith('https:');
-  app.use(
+  // On a plain-http request, helmet's default `upgrade-insecure-requests` rewrites every
+  // subresource fetch — including same-origin /assets/*.js — to https://, which may serve
+  // nothing (e.g. the Tailscale-IP access path at http://100.x.y.z:8088), white-screening
+  // the SPA; localhost is exempt as a trustworthy origin, which is why local smoke tests
+  // never hit this. HSTS over plain http is likewise meaningless. The same deployment can
+  // serve both schemes at once (https://dockcast... via Caddy TLS and the plain-http IP
+  // path), so decide per request: `req.secure` honours X-Forwarded-Proto under
+  // `trust proxy`.
+  const buildHelmet = (secure: boolean): ReturnType<typeof helmet> =>
     helmet({
       contentSecurityPolicy: {
         directives: {
@@ -66,12 +67,14 @@ export function createApp(deps: AppDeps): Express {
           'connect-src': ["'self'", 'https://tiles.openfreemap.org'],
           'img-src': ["'self'", 'data:', 'https://tiles.openfreemap.org'],
           'worker-src': ["'self'", 'blob:'],
-          ...(servesHttps ? {} : { 'upgrade-insecure-requests': null }),
+          ...(secure ? {} : { 'upgrade-insecure-requests': null }),
         },
       },
-      ...(servesHttps ? {} : { strictTransportSecurity: false }),
-    }),
-  );
+      ...(secure ? {} : { strictTransportSecurity: false }),
+    });
+  const helmetSecure = buildHelmet(true);
+  const helmetPlain = buildHelmet(false);
+  app.use((req, res, next) => (req.secure ? helmetSecure : helmetPlain)(req, res, next));
   app.use(requireFetchHeader);
   app.use(express.json());
   app.use(createSessionMiddleware(deps.pool, deps.config));

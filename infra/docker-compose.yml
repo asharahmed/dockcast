@@ -131,7 +131,8 @@ services:
     mem_limit: 2048m                                # LightGBM training
 
   caddy:
-    image: caddy:2.9-alpine
+    build: { context: ./caddy }
+    image: ghcr.io/${GHCR_OWNER:-local}/dockcast-caddy:${IMAGE_TAG:-latest}
     logging: *default-logging
     restart: unless-stopped
     # Host ports are overridable for hosts that already run something on 80/443 (e.g. a homelab proxy).
@@ -146,6 +147,9 @@ services:
       # HTTPS cert for the literal hostname `localhost`). See WP-11 final
       # report and `infra/.env.example`.
       SITE_ADDRESS: ${SITE_ADDRESS:-${DOMAIN}}
+      # Cloudflare zone token (Zone -> DNS -> Edit) for ACME DNS-01. Empty is
+      # fine on deployments whose SITE_ADDRESS has no https address.
+      CLOUDFLARE_API_TOKEN: ${CLOUDFLARE_API_TOKEN:-}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddydata:/data

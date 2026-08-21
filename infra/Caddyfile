@@ -1,3 +1,13 @@
+# Certificates via ACME DNS-01 (Cloudflare) so a host nothing external can
+# reach — the Tailscale-only proving deployment — still gets real certs.
+# Harmless when the token is unset: issuance only triggers for https site
+# addresses, and http-only deployments never create one.
+{
+	acme_dns cloudflare {env.CLOUDFLARE_API_TOKEN}
+}
+
+# SITE_ADDRESS may list several addresses, e.g. "dockcast.aahmed.ca, http://:80"
+# to serve the TLS domain and keep plain-http (IP-based) access alive.
 {$SITE_ADDRESS} {
 	encode zstd gzip
 	# HSTS only over TLS: browsers ignore the header on plain http anyway, and the

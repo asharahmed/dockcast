@@ -303,6 +303,9 @@ VAPID_PUBLIC_KEY=                               # npx web-push generate-vapid-ke
 VAPID_PRIVATE_KEY=
 VAPID_SUBJECT=mailto:ashar@aahmed.ca
 LOG_LEVEL=info
+CLOUDFLARE_API_TOKEN=                           # Zone->DNS->Edit token for the domain's zone; enables
+                                                # ACME DNS-01 in Caddy (works on hosts nothing external
+                                                # can reach, e.g. Tailscale-only). Empty = http-only.
 GOOGLE_CLIENT_ID=                               # optional; both set -> "Continue with Google" appears.
 GOOGLE_CLIENT_SECRET=                           # Google Cloud console -> APIs & Services -> Credentials ->
                                                 # OAuth client (Web application); authorized redirect URI:
