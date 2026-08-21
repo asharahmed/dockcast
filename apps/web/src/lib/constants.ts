@@ -290,7 +290,7 @@ export const COPY = {
       collectorUptime: 'Collector uptime (7 d)',
       lastForecastRun: 'Last forecast run',
       stations: 'Stations',
-      noneYet: 'none yet (flow model serving)',
+      noneYet: 'none yet',
       activeModelLine: (id: number, trainedFor: string) => `#${id} · trained for ${trainedFor}`,
     },
     explainer: {
