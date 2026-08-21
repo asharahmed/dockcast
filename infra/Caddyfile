@@ -3,7 +3,16 @@
 # Harmless when the token is unset: issuance only triggers for https site
 # addresses, and http-only deployments never create one.
 {
-	acme_dns cloudflare {env.CLOUDFLARE_API_TOKEN}
+	cert_issuer acme {
+		dns cloudflare {env.CLOUDFLARE_API_TOKEN}
+		# The container's resolver (Docker Desktop on Windows) can't reliably see
+		# public DNS, so Caddy's local propagation self-check times out even though
+		# the challenge TXT record is created fine. Skip the self-check — the CA
+		# validates against the zone's authoritative servers — and use a public
+		# resolver for any lookups the solver still makes.
+		resolvers 1.1.1.1
+		propagation_timeout -1
+	}
 }
 
 # SITE_ADDRESS may list several addresses, e.g. "dockcast.aahmed.ca, http://:80"
