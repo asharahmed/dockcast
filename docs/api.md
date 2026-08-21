@@ -178,6 +178,19 @@ records provider links (`db/migrations/0003_auth_identities.sql`).
   may be boolean or the string "true"; private-relay emails provision fresh users (no linking
   by relay address to an existing account is expected). Failures → 303 `/login?oauth=failed`.
 
+### Account linking (docs/ui-spec.md §4.8)
+
+- OAuth starts accept `?link=1`: made while signed in, the session user rides in the handshake
+  (`oauth_handshakes.link_user_id`) and the callback ATTACHES the identity to that user instead
+  of signing in — session untouched (works for Apple's cookie-less POST). Outcomes: 303
+  `/account?link=ok` | `/account?link=conflict` (the provider account already signs into a
+  different user) | `/login?oauth=failed` (exchange error). `link=1` without a session degrades
+  to normal sign-in.
+- `GET /auth/identities` (auth, no-store) → `AuthIdentitiesResponse { has_password,
+  identities: [{provider, email, created_at}] }`.
+- `DELETE /auth/identities/:provider` (auth) → 204; 400 `validation_error` when it would remove
+  the account's only sign-in method; 404 for unknown/unconnected provider.
+
 ## 6. Commutes (auth required)
 
 ```

@@ -42,6 +42,7 @@ export type {
   LoginRequest,
   UserResponse,
   AuthProvidersResponse,
+  AuthIdentitiesResponse,
   DaysOfWeek,
   Commute,
   CommuteOutlookLeg,

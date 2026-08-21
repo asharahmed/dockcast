@@ -10,18 +10,26 @@ import {
   loginRequestSchema,
   userResponseSchema,
   authProvidersResponseSchema,
+  authIdentitiesResponseSchema,
+  type AuthIdentitiesResponse,
   type UserResponse,
 } from '@dockcast/shared';
 import type { RouteDeps } from '../deps.js';
 import { sendJson } from '../lib/respond.js';
-import { conflict, notFound, unauthorized } from '../middleware/errors.js';
+import { conflict, notFound, unauthorized, validationError } from '../middleware/errors.js';
 import { parseBody } from '../lib/validate.js';
 import { createRateLimiter } from '../middleware/rateLimit.js';
 import { requireAuth } from '../middleware/requireAuth.js';
 import { regenerateSession, destroySession } from '../lib/sessionAsync.js';
 import { createUser, findUserByEmailCI, findUserById, touchLastLogin } from '../services/users.queries.js';
 import type { UserRow } from '../services/users.queries.js';
-import { findIdentityUserId, linkIdentity, type Provider } from '../services/identities.queries.js';
+import {
+  findIdentityUserId,
+  linkIdentity,
+  listIdentities,
+  deleteProviderIdentities,
+  type Provider,
+} from '../services/identities.queries.js';
 import { createHandshake, consumeHandshake } from '../services/oauth.queries.js';
 import { buildGoogleAuthUrl, exchangeGoogleCode, OAuthError, randomToken } from '../auth/googleOidc.js';
 import { buildAppleAuthUrl, exchangeAppleCode } from '../auth/appleOidc.js';
@@ -115,14 +123,34 @@ export function authRouter(deps: RouteDeps): Router {
       : '/commutes';
   }
 
-  /** Identity resolved: link/provision the user, regenerate the session, land on `next`. */
+  /**
+   * Identity resolved. Link mode (`linkUserId`, from a start made while signed
+   * in): attach the identity to that user and bounce to /account — the session
+   * is left untouched (Apple's cross-site POST doesn't even carry it). Sign-in
+   * mode: link/provision, regenerate the session, land on `next`.
+   */
   async function finishOAuth(
     req: Parameters<Parameters<Router['get']>[1]>[0],
     res: Parameters<Parameters<Router['get']>[1]>[1],
     provider: Provider,
     identity: { subject: string; email: string },
     next: string,
+    linkUserId: string | null,
   ): Promise<void> {
+    if (linkUserId !== null) {
+      const owner = await findIdentityUserId(deps.pool, provider, identity.subject);
+      if (owner !== null && owner !== linkUserId) {
+        // That Google/Apple account already signs into a different DockCast account.
+        res.redirect(303, '/account?link=conflict');
+        return;
+      }
+      if (owner === null) {
+        await linkIdentity(deps.pool, provider, identity.subject, linkUserId, identity.email);
+      }
+      res.redirect(303, '/account?link=ok');
+      return;
+    }
+
     let userId = await findIdentityUserId(deps.pool, provider, identity.subject);
     if (userId === null) {
       // First sign-in with this provider account: attach to the existing user
@@ -153,6 +181,7 @@ export function authRouter(deps: RouteDeps): Router {
       nonce,
       verifier,
       next: sanitizeNext(req.query.next),
+      link_user_id: req.query.link === '1' ? (req.session.userId ?? null) : null,
     });
     res.redirect(
       buildGoogleAuthUrl({
@@ -191,7 +220,7 @@ export function authRouter(deps: RouteDeps): Router {
         now: deps.now(),
         fetchImpl: deps.fetchImpl,
       });
-      await finishOAuth(req, res, 'google', identity, handshake.next);
+      await finishOAuth(req, res, 'google', identity, handshake.next, handshake.link_user_id);
     } catch (err) {
       if (!(err instanceof OAuthError)) throw err;
       deps.logger.warn({ err: err.message }, 'google oauth exchange failed');
@@ -208,6 +237,7 @@ export function authRouter(deps: RouteDeps): Router {
       nonce,
       verifier: null,
       next: sanitizeNext(req.query.next),
+      link_user_id: req.query.link === '1' ? (req.session.userId ?? null) : null,
     });
     res.redirect(
       buildAppleAuthUrl({
@@ -253,7 +283,7 @@ export function authRouter(deps: RouteDeps): Router {
           now: deps.now(),
           fetchImpl: deps.fetchImpl,
         });
-        await finishOAuth(req, res, 'apple', identity, handshake.next);
+        await finishOAuth(req, res, 'apple', identity, handshake.next, handshake.link_user_id);
       } catch (err) {
         if (!(err instanceof OAuthError)) throw err;
         deps.logger.warn({ err: err.message }, 'apple oauth exchange failed');
@@ -261,6 +291,43 @@ export function authRouter(deps: RouteDeps): Router {
       }
     },
   );
+
+  router.get('/auth/identities', requireAuth, async (req, res) => {
+    const userId = req.session.userId as string;
+    const [user, identities] = await Promise.all([
+      findUserById(deps.pool, userId),
+      listIdentities(deps.pool, userId),
+    ]);
+    if (!user) throw unauthorized();
+    const body: AuthIdentitiesResponse = {
+      has_password: user.password_hash !== null,
+      identities: identities.map((row) => ({
+        provider: row.provider,
+        email: row.email,
+        created_at: row.created_at.toISOString(),
+      })),
+    };
+    sendJson(res, 200, authIdentitiesResponseSchema, body, deps.config, 'no-store');
+  });
+
+  router.delete('/auth/identities/:provider', requireAuth, async (req, res) => {
+    const provider = req.params.provider as string;
+    if (provider !== 'google' && provider !== 'apple') throw notFound('Unknown provider');
+    const userId = req.session.userId as string;
+    const [user, identities] = await Promise.all([
+      findUserById(deps.pool, userId),
+      listIdentities(deps.pool, userId),
+    ]);
+    if (!user) throw unauthorized();
+    const remaining = identities.filter((row) => row.provider !== provider).length;
+    // Never let an account lock itself out: something must still sign in.
+    if (user.password_hash === null && remaining === 0) {
+      throw validationError('Cannot disconnect the only sign-in method');
+    }
+    const removed = await deleteProviderIdentities(deps.pool, userId, provider);
+    if (removed === 0) throw notFound('Provider is not connected');
+    res.status(204).end();
+  });
 
   return router;
 }

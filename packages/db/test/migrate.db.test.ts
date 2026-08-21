@@ -37,6 +37,7 @@ describe.skipIf(!DATABASE_URL_TEST)('migrate() against a throwaway database', ()
       { version: 3, name: 'auth_identities' },
       { version: 4, name: 'multi_city' },
       { version: 5, name: 'oauth_handshakes' },
+      { version: 6, name: 'identity_linking' },
     ]);
 
     const tables = await many<{ table_name: string }>(
@@ -116,9 +117,10 @@ describe.skipIf(!DATABASE_URL_TEST)('migrate() concurrency', () => {
       { version: 3, name: 'auth_identities' },
       { version: 4, name: 'multi_city' },
       { version: 5, name: 'oauth_handshakes' },
+      { version: 6, name: 'identity_linking' },
     ]);
 
     const count = await one<CountRow>(poolA, 'SELECT count(*)::int AS n FROM schema_migrations');
-    expect(count.n).toBe(5);
+    expect(count.n).toBe(6);
   });
 });

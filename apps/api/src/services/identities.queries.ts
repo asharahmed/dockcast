@@ -3,7 +3,7 @@
  * provider identities linked to `users`. `docs/api.md` §5.
  */
 import type { Pool } from '@dockcast/db';
-import { maybeOne, none } from '@dockcast/db';
+import { many, maybeOne, none } from '@dockcast/db';
 
 export type Provider = 'google' | 'apple';
 
@@ -33,4 +33,32 @@ export async function linkIdentity(
      ON CONFLICT (provider, subject) DO NOTHING`,
     [provider, subject, userId, email],
   );
+}
+
+export interface IdentityRow {
+  provider: Provider;
+  email: string | null;
+  created_at: Date;
+}
+
+export async function listIdentities(pool: Pool, userId: string): Promise<IdentityRow[]> {
+  return many<IdentityRow>(
+    pool,
+    `SELECT provider, email, created_at FROM auth_identities WHERE user_id = $1 ORDER BY provider`,
+    [userId],
+  );
+}
+
+/** Returns how many rows were removed. */
+export async function deleteProviderIdentities(
+  pool: Pool,
+  userId: string,
+  provider: Provider,
+): Promise<number> {
+  const rows = await many<{ provider: string }>(
+    pool,
+    `DELETE FROM auth_identities WHERE user_id = $1 AND provider = $2 RETURNING provider`,
+    [userId, provider],
+  );
+  return rows.length;
 }

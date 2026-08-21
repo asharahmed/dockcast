@@ -72,9 +72,12 @@ export function Header() {
 
         {user ? (
           <div className="flex items-center gap-3">
-            <span className="hidden text-[length:var(--fs-sm)] text-ink-2 sm:inline">
+            <Link
+              to="/account"
+              className="hidden text-[length:var(--fs-sm)] text-ink-2 underline-offset-4 hover:underline sm:inline"
+            >
               {truncateEmail(user.email)}
-            </span>
+            </Link>
             <button
               type="button"
               onClick={() => logout.mutate()}

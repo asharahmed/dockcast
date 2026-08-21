@@ -329,6 +329,17 @@ Prose page (max 68 ch), sections with h2s: "What this is" (2 paragraphs), "How t
 
 ---------------------------------------------------------------------------
 
+### 4.8 `/account` (auth required)
+Narrow column (max 560). h1 "Account" + the user's email. Header entry point: the signed-in
+email in the header links here. Section "Sign-in methods" as a hairline-divided list:
+- "Password" row → "set" / "none".
+- One row per provider (shown when connected OR enabled via `/auth/providers`): provider name +
+  linked email. Connected → "Disconnect" (InlineConfirm "Disconnect <Provider>?"); when it is the
+  account's only sign-in method → note "Your only sign-in method — set nothing else, disconnect
+  nothing." instead. Not connected → "Connect" full-page link to `/api/v1/auth/<p>?link=1&next=%2Faccount`.
+`?link=ok` → good wash "Connected."; `?link=conflict` → critical wash "That account already signs
+into a different DockCast account."
+
 ## 5. Component contracts (props are exact)
 
 | Component | Props | Behaviour |

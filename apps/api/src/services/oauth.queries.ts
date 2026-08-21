@@ -15,6 +15,8 @@ export interface Handshake {
   nonce: string;
   verifier: string | null;
   next: string;
+  /** Set when the start request was made by a signed-in user linking a provider (docs/api.md §5). */
+  link_user_id: string | null;
 }
 
 export async function createHandshake(
@@ -26,8 +28,9 @@ export async function createHandshake(
   await none(pool, `DELETE FROM oauth_handshakes WHERE created_at < now() - interval '${TTL_MINUTES} minutes'`);
   await none(
     pool,
-    `INSERT INTO oauth_handshakes (state, provider, nonce, verifier, next) VALUES ($1, $2, $3, $4, $5)`,
-    [state, handshake.provider, handshake.nonce, handshake.verifier, handshake.next],
+    `INSERT INTO oauth_handshakes (state, provider, nonce, verifier, next, link_user_id)
+     VALUES ($1, $2, $3, $4, $5, $6)`,
+    [state, handshake.provider, handshake.nonce, handshake.verifier, handshake.next, handshake.link_user_id],
   );
 }
 
@@ -41,7 +44,7 @@ export async function consumeHandshake(
     pool,
     `DELETE FROM oauth_handshakes
      WHERE state = $1 AND provider = $2 AND created_at >= now() - interval '${TTL_MINUTES} minutes'
-     RETURNING provider, nonce, verifier, next`,
+     RETURNING provider, nonce, verifier, next, link_user_id`,
     [state, provider],
   );
   return row;

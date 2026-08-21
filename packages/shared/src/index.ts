@@ -68,6 +68,7 @@ import {
   loginRequestSchema,
   userResponseSchema,
   authProvidersResponseSchema,
+  authIdentitiesResponseSchema,
 } from './api/auth.js';
 import {
   daysOfWeekSchema,
@@ -142,6 +143,7 @@ export const schemas = {
   loginRequest: loginRequestSchema,
   userResponse: userResponseSchema,
   authProvidersResponse: authProvidersResponseSchema,
+  authIdentitiesResponse: authIdentitiesResponseSchema,
 
   daysOfWeek: daysOfWeekSchema,
   commute: commuteSchema,

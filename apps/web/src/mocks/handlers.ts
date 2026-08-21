@@ -49,6 +49,13 @@ export const handlers = [
 
   http.get('/api/v1/auth/providers', () => HttpResponse.json({ google: true, apple: false })),
 
+  http.get('/api/v1/auth/identities', () =>
+    HttpResponse.json({
+      has_password: true,
+      identities: [{ provider: 'google', email: 'rider@example.com', created_at: '2026-08-20T00:00:00Z' }],
+    }),
+  ),
+
   http.get('/api/v1/auth/me', () => {
     if (!signedIn) {
       return HttpResponse.json(

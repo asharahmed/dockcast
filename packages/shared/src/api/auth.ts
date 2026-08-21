@@ -30,3 +30,16 @@ export const authProvidersResponseSchema = z.object({
   apple: z.boolean(),
 });
 export type AuthProvidersResponse = z.infer<typeof authProvidersResponseSchema>;
+
+/** `GET /auth/identities` — the signed-in user's sign-in methods (docs/api.md §5). */
+export const authIdentitiesResponseSchema = z.object({
+  has_password: z.boolean(),
+  identities: z.array(
+    z.object({
+      provider: z.enum(['google', 'apple']),
+      email: z.string().nullable(),
+      created_at: z.string().datetime({ offset: true }),
+    }),
+  ),
+});
+export type AuthIdentitiesResponse = z.infer<typeof authIdentitiesResponseSchema>;

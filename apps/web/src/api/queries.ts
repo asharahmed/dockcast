@@ -17,6 +17,7 @@ import type {
   StationHistoryResponse,
   UserResponse,
   AuthProvidersResponse,
+  AuthIdentitiesResponse,
   HealthResponse,
   LoginRequest,
   RegisterRequest,
@@ -44,6 +45,7 @@ export const queryKeys = {
   stationHistory: (id: number, hours: number) => ['station-history', id, hours] as const,
   me: ['me'] as const,
   authProviders: ['auth-providers'] as const,
+  authIdentities: ['auth-identities'] as const,
   health: ['health'] as const,
   trip: (origin: number, dest: number, departAtMinute: number | null, rideMinutes: number | null) =>
     ['trip', origin, dest, departAtMinute, rideMinutes] as const,
@@ -132,6 +134,26 @@ export function useAuthProviders() {
     queryKey: queryKeys.authProviders,
     queryFn: () => apiGet<AuthProvidersResponse>('/auth/providers', schemas.authProvidersResponse),
     staleTime: Infinity,
+  });
+}
+
+/** `GET /auth/identities` — the signed-in user's sign-in methods (Account page). */
+export function useAuthIdentities() {
+  const { data: me } = useMe();
+  return useQuery({
+    queryKey: queryKeys.authIdentities,
+    queryFn: () => apiGet<AuthIdentitiesResponse>('/auth/identities', schemas.authIdentitiesResponse),
+    enabled: !!me,
+  });
+}
+
+export function useUnlinkIdentity() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (provider: 'google' | 'apple') => apiDelete<undefined>(`/auth/identities/${provider}`),
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.authIdentities });
+    },
   });
 }
 
