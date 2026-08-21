@@ -151,7 +151,7 @@ Passwords: argon2id (`argon2` defaults). Sessions regenerate on login. Rate limi
 them 401s with the same message as bad credentials). `auth_identities (provider, subject) → user_id`
 records provider links (`db/migrations/0003_auth_identities.sql`).
 
-- `GET /auth/providers` → 200 `AuthProvidersResponse { google: bool, apple: bool }` (max-age=300).
+- `GET /auth/providers` → 200 `AuthProvidersResponse { google: bool, apple: bool }` (no-store: config-derived; a cached `false` would hide the button right after enabling a provider).
   A provider is `true` iff its credentials are configured (`GOOGLE_CLIENT_ID` + `GOOGLE_CLIENT_SECRET`).
 - `GET /auth/google?next=<path>` → 302 to Google's OIDC authorization endpoint (scope `openid email`,
   PKCE S256, `state` + `nonce` held in the session). `next` must be a same-origin path (`/...`,

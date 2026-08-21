@@ -85,13 +85,16 @@ export function authRouter(deps: RouteDeps): Router {
   const googleRedirectUri = `${deps.config.publicBaseUrl.replace(/\/$/, '')}/api/v1/auth/google/callback`;
 
   router.get('/auth/providers', (req, res) => {
+    // no-store: this is config-derived, and an HTTP-cached `false` hides the
+    // OAuth button for minutes right after a provider is enabled — the web
+    // client already caches it in memory for the session.
     sendJson(
       res,
       200,
       authProvidersResponseSchema,
       { google: googleEnabled, apple: false },
       deps.config,
-      'public, max-age=300',
+      'no-store',
     );
   });
 
