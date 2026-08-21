@@ -71,8 +71,8 @@ describe('OAuth sign-in', () => {
       await ctx.teardown();
     });
 
-    /** Runs the start leg, returns the session cookie + state + Google URL. */
-    async function startFlow(next = '/commutes'): Promise<{ cookie: string; state: string }> {
+    /** Runs the start leg; the handshake is server-side, so only `state` comes back. */
+    async function startFlow(next = '/commutes'): Promise<{ state: string }> {
       const res = await request(ctx.app).get(`/api/v1/auth/google?next=${encodeURIComponent(next)}`);
       expect(res.status).toBe(302);
       const location = new URL(res.headers.location as string);
@@ -80,18 +80,15 @@ describe('OAuth sign-in', () => {
       expect(location.searchParams.get('client_id')).toBe('test-client-id');
       expect(location.searchParams.get('code_challenge_method')).toBe('S256');
       sentNonce = location.searchParams.get('nonce') as string;
-      return {
-        cookie: (res.headers['set-cookie'] as unknown as string[])[0]?.split(';')[0] as string,
-        state: location.searchParams.get('state') as string,
-      };
+      return { state: location.searchParams.get('state') as string };
     }
 
     it('provisions a user on first sign-in and signs them in', async () => {
-      const { cookie, state } = await startFlow('/map-route');
-      const res = await request(ctx.app)
-        .get(`/api/v1/auth/google/callback?code=alice&state=${state}`)
-        .set('Cookie', cookie);
-      expect(res.status).toBe(302);
+      const { state } = await startFlow('/map-route');
+      const res = await request(ctx.app).get(
+        `/api/v1/auth/google/callback?code=alice&state=${state}`,
+      );
+      expect(res.status).toBe(303);
       expect(res.headers.location).toBe('/map-route');
 
       const sessionCookie = (res.headers['set-cookie'] as unknown as string[])[0]?.split(
@@ -103,10 +100,10 @@ describe('OAuth sign-in', () => {
 
       // Same Google account again → same user, no duplicate.
       const again = await startFlow();
-      const res2 = await request(ctx.app)
-        .get(`/api/v1/auth/google/callback?code=alice&state=${again.state}`)
-        .set('Cookie', again.cookie);
-      expect(res2.status).toBe(302);
+      const res2 = await request(ctx.app).get(
+        `/api/v1/auth/google/callback?code=alice&state=${again.state}`,
+      );
+      expect(res2.status).toBe(303);
       const users = await ctx.pool.query(`SELECT id, password_hash FROM users WHERE email = 'alice@example.com'`);
       expect(users.rowCount).toBe(1);
       expect(users.rows[0].password_hash).toBeNull();
@@ -119,11 +116,11 @@ describe('OAuth sign-in', () => {
         .send({ email: 'bob@example.com', password: 'longenoughpw' });
       expect(reg.status).toBe(201);
 
-      const { cookie, state } = await startFlow();
-      const res = await request(ctx.app)
-        .get(`/api/v1/auth/google/callback?code=bob&state=${state}`)
-        .set('Cookie', cookie);
-      expect(res.status).toBe(302);
+      const { state } = await startFlow();
+      const res = await request(ctx.app).get(
+        `/api/v1/auth/google/callback?code=bob&state=${state}`,
+      );
+      expect(res.status).toBe(303);
 
       const users = await ctx.pool.query(`SELECT id FROM users WHERE email = 'bob@example.com'`);
       expect(users.rowCount).toBe(1);
@@ -133,19 +130,24 @@ describe('OAuth sign-in', () => {
       expect(idents.rows[0].user_id).toBe(users.rows[0].id);
     });
 
-    it('rejects a state mismatch with a redirect to /login?oauth=failed', async () => {
-      const { cookie } = await startFlow();
-      const res = await request(ctx.app)
-        .get('/api/v1/auth/google/callback?code=x&state=wrong')
-        .set('Cookie', cookie);
+    it('rejects an unknown state with a redirect to /login?oauth=failed', async () => {
+      await startFlow();
+      const res = await request(ctx.app).get('/api/v1/auth/google/callback?code=x&state=wrong');
       expect(res.status).toBe(302);
       expect(res.headers.location).toBe('/login?oauth=failed');
     });
 
-    it('rejects a callback with no handshake in the session', async () => {
-      const res = await request(ctx.app).get('/api/v1/auth/google/callback?code=x&state=y');
-      expect(res.status).toBe(302);
-      expect(res.headers.location).toBe('/login?oauth=failed');
+    it('a state is single-use', async () => {
+      const { state } = await startFlow();
+      const first = await request(ctx.app).get(
+        `/api/v1/auth/google/callback?code=single&state=${state}`,
+      );
+      expect(first.status).toBe(303);
+      const replay = await request(ctx.app).get(
+        `/api/v1/auth/google/callback?code=single&state=${state}`,
+      );
+      expect(replay.status).toBe(302);
+      expect(replay.headers.location).toBe('/login?oauth=failed');
     });
 
     it('password login on an OAuth-only account fails like bad credentials', async () => {

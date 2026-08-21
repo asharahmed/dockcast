@@ -146,11 +146,12 @@ export const COPY = {
     passwordHint: 'At least 10 characters',
     orDivider: 'or',
     continueWithGoogle: 'Continue with Google',
+    continueWithApple: 'Continue with Apple',
     errors: {
       badCredentials: "That email and password don't match.",
       emailTaken: 'That email is already registered. Sign in instead.',
       rateLimited: 'Too many attempts. Try again in a few minutes.',
-      oauthFailed: "Couldn't sign in with Google. Try again.",
+      oauthFailed: "Sign-in didn't complete. Try again.",
     },
   },
   about: {

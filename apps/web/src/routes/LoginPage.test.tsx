@@ -26,6 +26,15 @@ describe('LoginPage OAuth', () => {
     expect(link).toHaveAttribute('href', '/api/v1/auth/google?next=%2Fcommutes');
   });
 
+  it('shows "Continue with Apple" when that provider is configured', async () => {
+    server.use(
+      http.get('/api/v1/auth/providers', () => HttpResponse.json({ google: true, apple: true })),
+    );
+    renderPage('/login');
+    const link = await screen.findByRole('link', { name: COPY.auth_pages.continueWithApple });
+    expect(link).toHaveAttribute('href', '/api/v1/auth/apple?next=%2Fcommutes');
+  });
+
   it('hides the button when the deployment has no OAuth configured', async () => {
     server.use(
       http.get('/api/v1/auth/providers', () => HttpResponse.json({ google: false, apple: false })),

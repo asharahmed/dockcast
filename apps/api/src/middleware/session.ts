@@ -16,15 +16,6 @@ import type { Config } from '../config.js';
 declare module 'express-session' {
   interface SessionData {
     userId?: string;
-    // In-flight OAuth handshake (set by GET /auth/google, consumed by its
-    // callback; wiped by the post-login session regeneration).
-    oauth?: {
-      provider: 'google';
-      state: string;
-      nonce: string;
-      verifier: string;
-      next: string;
-    };
   }
 }
 

@@ -164,8 +164,19 @@ records provider links (`db/migrations/0003_auth_identities.sql`).
 - Redirect URI is `PUBLIC_BASE_URL + /api/v1/auth/google/callback` — register it in the Google
   console. Google requires https for non-localhost redirect URIs, so this is unusable on the
   plain-http Tailscale deployment; localhost dev and the eventual TLS deploy both work.
-- Rate limit: separate bucket, 30 req / 15 min / IP across both OAuth routes (one sign-in costs
+- Rate limit: separate bucket, 30 req / 15 min / IP across the OAuth routes (one sign-in costs
   two requests, and users retry).
+- Handshake state (state/nonce/PKCE verifier/next) lives in `oauth_handshakes` keyed by the
+  single-use 256-bit `state` (15 min TTL, deleted on consume) — NOT the session, because Apple's
+  callback is a cross-site POST that carries no SameSite=Lax cookie.
+- `GET /auth/apple?next=<path>` → 302 to Apple's authorization endpoint (scope `email`,
+  `response_mode=form_post`; no PKCE — Apple ignores it). 404 when not configured
+  (`APPLE_SERVICES_ID` + `APPLE_TEAM_ID` + `APPLE_KEY_ID` + `APPLE_PRIVATE_KEY`).
+- `POST /auth/apple/callback` — urlencoded form POST from appleid.apple.com; exempt from the
+  `X-Requested-With` CSRF check (the server-side single-use `state` is the CSRF protection).
+  Client secret is a 5-min ES256 JWT built per exchange from the .p8 key. `email_verified`
+  may be boolean or the string "true"; private-relay emails provision fresh users (no linking
+  by relay address to an existing account is expected). Failures → 303 `/login?oauth=failed`.
 
 ## 6. Commutes (auth required)
 

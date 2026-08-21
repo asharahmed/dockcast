@@ -62,6 +62,12 @@ const envSchema = z.object({
   // google: false and the OAuth routes 404 (docs/api.md §5).
   GOOGLE_CLIENT_ID: z.string().min(1).optional(),
   GOOGLE_CLIENT_SECRET: z.string().min(1).optional(),
+  // Sign in with Apple: all four set -> enabled. The .p8 key is stored with
+  // literal \n escapes (env files are single-line); unescaped in loadConfig.
+  APPLE_SERVICES_ID: z.string().min(1).optional(),
+  APPLE_TEAM_ID: z.string().min(1).optional(),
+  APPLE_KEY_ID: z.string().min(1).optional(),
+  APPLE_PRIVATE_KEY: z.string().min(1).optional(),
 });
 
 export interface Config {
@@ -82,6 +88,11 @@ export interface Config {
   /** Both set → Google sign-in enabled. */
   googleClientId: string | null;
   googleClientSecret: string | null;
+  /** All four set → Sign in with Apple enabled. */
+  appleServicesId: string | null;
+  appleTeamId: string | null;
+  appleKeyId: string | null;
+  applePrivateKey: string | null;
 }
 
 /**
@@ -115,5 +126,9 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     trustProxy: data.TRUST_PROXY,
     googleClientId: data.GOOGLE_CLIENT_ID ?? null,
     googleClientSecret: data.GOOGLE_CLIENT_SECRET ?? null,
+    appleServicesId: data.APPLE_SERVICES_ID ?? null,
+    appleTeamId: data.APPLE_TEAM_ID ?? null,
+    appleKeyId: data.APPLE_KEY_ID ?? null,
+    applePrivateKey: data.APPLE_PRIVATE_KEY?.replace(/\\n/g, '\n') ?? null,
   };
 }

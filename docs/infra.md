@@ -307,6 +307,11 @@ CLOUDFLARE_API_TOKEN=                           # Zone->DNS->Edit token for the 
                                                 # ACME DNS-01 in Caddy (works on hosts nothing external
                                                 # can reach, e.g. Tailscale-only). Empty = http-only.
 GOOGLE_CLIENT_ID=                               # optional; both set -> "Continue with Google" appears.
+APPLE_SERVICES_ID=                              # optional; all four set -> "Continue with Apple".
+APPLE_TEAM_ID=                                  # developer.apple.com (paid account): Services ID with
+APPLE_KEY_ID=                                   # Sign in with Apple, domain verified, return URL
+APPLE_PRIVATE_KEY=                              # ${PUBLIC_BASE_URL}/api/v1/auth/apple/callback; .p8 key
+                                                # contents with literal \n for newlines
 GOOGLE_CLIENT_SECRET=                           # Google Cloud console -> APIs & Services -> Credentials ->
                                                 # OAuth client (Web application); authorized redirect URI:
                                                 # ${PUBLIC_BASE_URL}/api/v1/auth/google/callback

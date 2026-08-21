@@ -32,9 +32,21 @@ function GoogleG() {
   );
 }
 
+/** Apple mark (monochrome, follows the current ink colour per Apple HIG's plain style). */
+function AppleMark() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 814 1000" aria-hidden="true" fill="currentColor">
+      <path d="M788 341c-6 4-107 61-107 187 0 146 128 198 132 199-1 3-20 71-67 141-42 61-86 122-152 122s-83-38-159-38c-74 0-101 39-161 39s-102-57-150-126C69 785 24 664 24 549c0-184 120-282 238-282 63 0 115 41 154 41 37 0 95-43 166-43 27 0 123 2 186 76zM549 179c30-36 52-86 52-135 0-7-1-14-2-19-49 2-108 33-143 74-28 32-54 82-54 132 0 8 1 15 2 18 3 1 8 1 13 1 44 0 100-30 132-71z" />
+    </svg>
+  );
+}
+
+const BUTTON_CLASS =
+  'flex items-center justify-center gap-3 rounded-[var(--r-1)] border border-rule-strong bg-surface px-3 py-2 font-medium text-ink hover:bg-surface-2';
+
 export function OAuthButtons({ next }: { next: string }) {
   const { data: providers } = useAuthProviders();
-  if (!providers?.google) return null;
+  if (!providers?.google && !providers?.apple) return null;
 
   return (
     <div className="flex flex-col gap-4">
@@ -43,13 +55,18 @@ export function OAuthButtons({ next }: { next: string }) {
         {COPY.auth_pages.orDivider}
         <span className="h-px flex-1 bg-rule" />
       </div>
-      <a
-        href={`/api/v1/auth/google?next=${encodeURIComponent(next)}`}
-        className="flex items-center justify-center gap-3 rounded-[var(--r-1)] border border-rule-strong bg-surface px-3 py-2 font-medium text-ink hover:bg-surface-2"
-      >
-        <GoogleG />
-        {COPY.auth_pages.continueWithGoogle}
-      </a>
+      {providers.google && (
+        <a href={`/api/v1/auth/google?next=${encodeURIComponent(next)}`} className={BUTTON_CLASS}>
+          <GoogleG />
+          {COPY.auth_pages.continueWithGoogle}
+        </a>
+      )}
+      {providers.apple && (
+        <a href={`/api/v1/auth/apple?next=${encodeURIComponent(next)}`} className={BUTTON_CLASS}>
+          <AppleMark />
+          {COPY.auth_pages.continueWithApple}
+        </a>
+      )}
     </div>
   );
 }
