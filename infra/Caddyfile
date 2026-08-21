@@ -3,6 +3,13 @@
 # Harmless when the token is unset: issuance only triggers for https site
 # addresses, and http-only deployments never create one.
 {
+	# Forwarded headers from the homelab front proxy (same-host Docker, private
+	# source IPs) are trusted so X-Forwarded-Proto=https reaches the api and
+	# req.secure reflects the real client scheme behind two proxies.
+	servers {
+		trusted_proxies static private_ranges
+	}
+
 	cert_issuer acme {
 		dns cloudflare {env.CLOUDFLARE_API_TOKEN}
 		# The container's resolver (Docker Desktop on Windows) can't reliably see
