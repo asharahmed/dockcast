@@ -1,4 +1,5 @@
-# TZ=America/Toronto set on the container. Nightly train/eval (ml-spec §7).
-30 3 * * * python -m dockcast_ml train --city toronto
+# TZ=America/Toronto set on the container. Nightly train/eval (ml-spec §7), wrapped so an OOM
+# kill raises this container's memory limit and re-runs (infra.md §3.4, ml/scripts/train-with-retry.sh).
+30 3 * * * /app/scripts/train-with-retry.sh train --city toronto
 # Optional: rebuild tod profile only (cheap) at 12:30 to keep "typical" fresh (train also does it)
 30 12 * * * python -m dockcast_ml profile --city toronto

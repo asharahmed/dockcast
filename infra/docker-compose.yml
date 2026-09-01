@@ -122,13 +122,26 @@ services:
       TZ: America/Toronto                           # supercronic schedules in the container's local time
       TRIPS_CACHE_DIR: /data/cache
       LOG_LEVEL: INFO                                # see worker-predict comment above
+      # OOM self-healing for the nightly job (ml/scripts/train-with-retry.sh): after an OOM kill
+      # the wrapper raises this container's memory limit by TRAIN_MEM_STEP (never above
+      # TRAIN_MEM_MAX) via the docker socket and re-runs; the raised limit is persisted on the
+      # workercache volume and re-applied after every recreate. Keep TRAIN_MEM_MAX below what
+      # the Docker VM / host can spare for this one container.
+      TRAIN_MEM_STEP: ${TRAIN_MEM_STEP:-2g}
+      TRAIN_MEM_MAX: ${TRAIN_MEM_MAX:-8g}
+      TRAIN_MEM_STATE_FILE: /data/cache/train_mem_limit
+    # docker.sock is root:root 660 on Docker Desktop (root:docker on Linux -> set DOCKER_SOCK_GID);
+    # the image runs as `app`, so add the socket's group for `POST /containers/<self>/update`.
+    group_add: ["${DOCKER_SOCK_GID:-0}"]
     volumes:
       - ./supercronic/crontab:/app/crontab:ro
-      - workercache:/data/cache                     # downloaded trip zips (bootstrap), ~250 MB
+      - workercache:/data/cache                     # downloaded trip zips (bootstrap), ~250 MB; train_mem_limit
+      - /var/run/docker.sock:/var/run/docker.sock   # train-with-retry.sh raises its own mem limit
     depends_on:
       db: { condition: service_healthy }
       api: { condition: service_healthy }           # see worker-predict comment above
-    mem_limit: 2048m                                # LightGBM training
+    mem_limit: ${TRAIN_MEM_LIMIT:-6g}               # LightGBM training + 7-day online metrics; start
+                                                    # point only, train-with-retry.sh raises it on OOM
 
   caddy:
     build: { context: ./caddy }

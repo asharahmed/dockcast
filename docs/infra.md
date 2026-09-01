@@ -113,13 +113,18 @@ services:
       MIGRATIONS_DIR: /app/db/migrations
       TZ: America/Toronto                           # supercronic schedules in the container's local time
       TRIPS_CACHE_DIR: /data/cache
+      TRAIN_MEM_STEP: ${TRAIN_MEM_STEP:-2g}         # train-with-retry.sh, see §3.4
+      TRAIN_MEM_MAX: ${TRAIN_MEM_MAX:-8g}
+      TRAIN_MEM_STATE_FILE: /data/cache/train_mem_limit
+    group_add: ["${DOCKER_SOCK_GID:-0}"]            # docker.sock group (0 on Docker Desktop, `docker` gid on Linux)
     volumes:
       - ./supercronic/crontab:/app/crontab:ro
       - workercache:/data/cache                     # downloaded trip zips (bootstrap), ~250 MB
+      - /var/run/docker.sock:/var/run/docker.sock   # lets train-with-retry.sh raise its own mem_limit
     depends_on:
       db: { condition: service_healthy }
       api: { condition: service_started }
-    mem_limit: 2048m                                # LightGBM training
+    mem_limit: ${TRAIN_MEM_LIMIT:-6g}               # start point; train-with-retry.sh raises it on OOM
 
   caddy:
     image: caddy:2.9-alpine
@@ -148,7 +153,7 @@ volumes:
 - Manual: `docker compose run --rm api node dist/migrate.js` (api image ships a `migrate.js` entry that runs migrations and exits).
 
 ### 1.2 Sizing (Hetzner CX22: 2 vCPU / 4 GB / 40 GB)
-db 1.5 GB, worker-train ≤ 2 GB (only during the nightly run; otherwise idle at ~60 MB under supercronic), api 0.5 GB, collector 0.25 GB, worker-predict 0.75 GB, caddy tiny. Peak overlap (nightly) fits in 4 GB with the given `mem_limit`s; add a 2 GB swapfile as safety (runbook §7).
+db 1.5 GB, worker-train 6 GB start / 8 GB cap (only during the nightly run; otherwise idle at ~60 MB under supercronic; the 2 GB budget in the original plan was OOM-killed once real history accumulated -- see §3.4), api 0.5 GB, collector 0.25 GB, worker-predict 0.75 GB, caddy tiny. On a 4 GB VPS set `TRAIN_MEM_LIMIT`/`TRAIN_MEM_MAX` lower and expect the trainer to need swap (runbook §7's 2 GB swapfile).
 Disk: images ~1.5 GB, DB ~3–8 GB after compression at 120-day retention, cache 0.3 GB.
 
 ---------------------------------------------------------------------------
@@ -253,11 +258,35 @@ CMD ["python", "-m", "dockcast_ml", "predict", "--loop"]
 ### 3.4 `infra/supercronic/crontab`
 ```
 # TZ=America/Toronto set on the container. Nightly train/eval (ml-spec §7).
-30 3 * * * python -m dockcast_ml train --city toronto
+30 3 * * * /app/scripts/train-with-retry.sh train --city toronto
 # Optional: rebuild tod profile only (cheap) at 12:30 to keep "typical" fresh (train also does it)
 30 12 * * * python -m dockcast_ml profile --city toronto
 ```
 DST: because supercronic uses the container's local time, `03:30 America/Toronto` is correct year-round; on the spring-forward night (no 02:xx) 03:30 still exists, on fall-back it runs once.
+
+**OOM self-healing** (`ml/scripts/train-with-retry.sh`, added 2026-09-01 after four of five nightly runs on
+the home server died with exit 137 at the old 2 GiB limit). The wrapper runs `python -m dockcast_ml train`
+and:
+- on exit 137 with a new `oom_kill` in the container's `memory.events`, raises the container's own memory
+  limit by `TRAIN_MEM_STEP` (default 2g, never above `TRAIN_MEM_MAX`, default 8g) with
+  `POST /containers/<self>/update` on the mounted docker socket, then re-runs (the trainer is idempotent
+  per local date). Exit 137 without an OOM event (e.g. `docker kill`) and any other non-zero exit are not
+  retried;
+- persists the raised limit to `/data/cache/train_mem_limit` (workercache volume) and re-applies it at
+  the start of every run, so `compose up -d` recreating the container at the compose `mem_limit` does not
+  undo it;
+- after a successful run, if the cgroup's peak usage (`memory.peak`, includes page cache) was
+  >= `TRAIN_MEM_HEADROOM_PCT` (default 80) of the limit, raises the limit now so the next night has
+  headroom;
+- logs one line per attempt with the limit and the peak, e.g. `ok: cgroup peak 2874 MiB = 46% of the
+  6144 MiB limit`.
+
+Pick `TRAIN_MEM_MAX` so that it fits next to everything else on the host: on the home server the Docker VM
+has 13.65 GiB and the other containers use ~7 GiB, hence 8g. If the trainer ever needs more, give the VM
+more memory (`.wslconfig`) rather than raising the cap. The socket mount hands the container control of
+the Docker daemon; it is only needed for this one call, so on a shared host route it through a
+socket proxy that allows `POST /containers/*/update` only. Tests: `ml/tests/test_train_with_retry.py`
+(fake cgroup dir + fake Engine API on a unix socket).
 
 ---------------------------------------------------------------------------
 
@@ -564,3 +593,7 @@ URL: http://100.69.154.58:8088 (Tailscale only, plain HTTP).
   and the API/`/model` page; the bash `status.sh` needs a POSIX shell (run its psql lines via `docker compose exec` manually).
 - Caveat: Docker Desktop (WSL2) only starts after a Windows sign-in; enable auto sign-in for unattended reboots.
 - Trip-history bootstrap on the server used the full window 2025-04 → 2026-03 (8.36M trips).
+- 2026-09-01 incident: every 15-min `forecast_history` write had failed since 2026-08-27 (`model_version_id`
+  upcast to float by pandas once bd_cal rows existed; fixed in `predict.py`), and the nightly trainer was
+  OOM-killed at 2 GiB on 4 of 5 nights. Trainer now starts at 6 GiB with the §3.4 self-healing wrapper.
+  Trainer logs: `docker logs --since 48h dockcast-worker-train-1` (from PowerShell wrap in `cmd /c "... 2>&1"`).

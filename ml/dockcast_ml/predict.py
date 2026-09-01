@@ -414,14 +414,17 @@ def predict_once(cfg: Config, conn: psycopg.Connection, city: dict, t0: datetime
                         "bd_a": None, "bd_d": None, "lam_in": None, "lam_out": None,
                     }
                 )
-        history_df = pd.DataFrame(history_records, columns=_FORECAST_HISTORY_COLS)
-        n_history = len(history_df)
+        n_history = len(history_records)
+        # Straight from the dicts, like forecasts_latest above. `model_version_id` is None on
+        # bd_raw rows and an int on bd_cal/gbm rows; a DataFrame upcasts that mixed column to
+        # float64 ("19.0") and COPY rejects it for the integer column -- which silently failed
+        # every 15-min history write from the first night a bd calibrator existed (2026-08-27).
         # `ON COMMIT DROP` needs the CREATE/COPY/INSERT to share one transaction even when `conn`
         # is autocommit (each autocommit statement is otherwise its own transaction, which would
         # drop the temp table before the COPY runs) -- `conn.transaction()` gives that in both cases.
         with conn.transaction(), conn.cursor() as cur:
             cur.execute("CREATE TEMP TABLE tmp_forecast_history (LIKE forecast_history INCLUDING DEFAULTS) ON COMMIT DROP")
-            db.copy_df(cur, "tmp_forecast_history", history_df)
+            db.copy_records(cur, "tmp_forecast_history", _FORECAST_HISTORY_COLS, history_records)
             cur.execute(
                 "INSERT INTO forecast_history SELECT * FROM tmp_forecast_history "
                 "ON CONFLICT (station_pk, t0, horizon, tier) DO NOTHING"

@@ -11,11 +11,14 @@ import time
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
+import numpy as np
 import psycopg
 import pytest
 
 from dockcast_ml import db as dbmod
 from dockcast_ml.config import Config
+from dockcast_ml.models.artifact import BdBundle, dumps
+from dockcast_ml.models.calibration import fit_calibrators
 from dockcast_ml.predict import PredictState, predict_once
 from dockcast_ml.timeutil import floor_to
 
@@ -214,6 +217,72 @@ def test_predict_once_full_contract(db_conn: psycopg.Connection, synthetic_city:
 
     runs_final = dbmod.fetch_df(db_conn, "SELECT count(*) AS n FROM worker_runs WHERE city_id=%(c)s AND kind='predict'", {"c": synthetic_city})
     assert int(runs_final["n"].iloc[0]) == 4  # t0, t1, t0 again, t0 again
+
+
+def _insert_calibrated_bd_version(conn: psycopg.Connection, city_id: int, t0: datetime) -> int:
+    """A real `bd` model_versions row whose artifact carries per-horizon isotonic calibrators --
+    what the trainer writes once its calibration window has enough rows (ml-spec §5.1)."""
+    rng = np.random.default_rng(0)
+    n = 300
+    p = np.tile(rng.uniform(0.0, 1.0, n), 6)
+    horizons = np.repeat([15, 30, 45, 60, 90, 120], n)
+    y = (rng.uniform(0.0, 1.0, p.size) < p).astype(np.int8)
+    cal = fit_calibrators(p, y, horizons, min_rows=100)
+    bundle = BdBundle(calibrators={"bike": cal, "dock": cal}, fit_window=("a", "b"), created_at=t0.isoformat())
+    with conn.cursor() as cur:
+        cur.execute(
+            "INSERT INTO model_versions (city_id, tier, status, feature_schema_version, trained_for_date, artifact, activated_at) "
+            "VALUES (%s, 'bd', 'active', 1, %s, %s, now()) RETURNING id",
+            (city_id, t0.date(), dumps(bundle)),
+        )
+        row = cur.fetchone()
+        assert row is not None
+    conn.commit()
+    return int(row[0])
+
+
+@pytest.mark.db
+def test_predict_once_with_calibrated_bd_writes_bd_cal_history(db_conn: psycopg.Connection, synthetic_city: int) -> None:
+    """Regression (prod 2026-08-27 -> 09-01): with an active calibrated `bd` version the 15-min
+    history write mixes bd_raw rows (model_version_id NULL) and bd_cal rows (integer id). Built via
+    a DataFrame that column became float64 ("19.0") and COPY rejected every history write."""
+    city = dbmod.fetch_df(db_conn, "SELECT * FROM cities WHERE id=%(c)s", {"c": synthetic_city}).iloc[0].to_dict()
+    t0 = floor_to(datetime.now(UTC), 900)
+    seeded = _seed_from_fixture(db_conn, synthetic_city, t0)
+    bd_id = _insert_calibrated_bd_version(db_conn, synthetic_city, t0)
+
+    state = PredictState()
+    summary = _run_predict_once(db_conn, city, t0, state)
+    assert summary["serving_tier"] == "bd_cal"
+    assert state.bd_id == bd_id
+
+    n_forecastable = N_STATIONS - 3
+    history = dbmod.fetch_df(
+        db_conn,
+        "SELECT tier, model_version_id, p_bike, bd_a FROM forecast_history "
+        "WHERE station_pk = ANY(%(pks)s) AND t0=%(t0)s",
+        {"pks": seeded.pks, "t0": t0},
+    )
+    assert len(history) == n_forecastable * 6 * 2
+    counts = history["tier"].value_counts()
+    assert counts["bd_raw"] == n_forecastable * 6
+    assert counts["bd_cal"] == n_forecastable * 6
+    raw = history[history["tier"] == "bd_raw"]
+    cal = history[history["tier"] == "bd_cal"]
+    assert raw["model_version_id"].isna().all()
+    assert (cal["model_version_id"] == bd_id).all()
+    assert raw["bd_a"].notna().all()
+    assert cal["bd_a"].isna().all()
+    assert ((cal["p_bike"] >= 0) & (cal["p_bike"] <= 1)).all()
+
+    latest = dbmod.fetch_df(
+        db_conn,
+        "SELECT tier, model_version_id FROM forecasts_latest WHERE station_pk = ANY(%(pks)s) AND reason IS NULL",
+        {"pks": seeded.pks},
+    )
+    assert len(latest) == n_forecastable * 6
+    assert (latest["tier"] == "bd_cal").all()
+    assert (latest["model_version_id"] == bd_id).all()
 
 
 def _seed_synthetic_perf(conn: psycopg.Connection, city_id: int, t0: datetime, n: int) -> list[int]:

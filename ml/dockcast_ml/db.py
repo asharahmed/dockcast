@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Iterable, Iterator, Sequence
+from collections.abc import Iterable, Iterator, Mapping, Sequence
 from contextlib import contextmanager
 from typing import Any
 
@@ -51,6 +51,18 @@ def copy_df(cur: psycopg.Cursor, table: str, df: pd.DataFrame) -> int:
     cols = list(df.columns)
     rows = (tuple(_copy_value(v) for v in row) for row in df.itertuples(index=False, name=None))
     return copy_rows(cur, table, cols, rows)
+
+
+def copy_records(
+    cur: psycopg.Cursor, table: str, cols: list[str], records: Iterable[Mapping[str, Any]]
+) -> int:
+    """COPY dict records into `table` in `cols` order, straight from the Python values.
+
+    Use this instead of `copy_df` when a column mixes `None` and ints (e.g. `model_version_id`):
+    a DataFrame upcasts such a column to float64 and COPY then rejects "19.0" for an integer
+    column. NaN -> NULL as in `copy_df`.
+    """
+    return copy_rows(cur, table, cols, (tuple(_copy_value(r[c]) for c in cols) for r in records))
 
 
 def upsert_rows(
