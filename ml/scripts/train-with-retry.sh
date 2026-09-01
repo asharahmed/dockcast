@@ -9,7 +9,8 @@
 #  * the raised limit is persisted to TRAIN_MEM_STATE_FILE (on the workercache volume) and
 #    re-applied at the start of every run, so it survives `compose up -d` recreating the
 #    container with the compose-file `mem_limit`.
-#  * after a successful run, if the cgroup's peak usage was >= TRAIN_MEM_HEADROOM_PCT of the
+#  * after a successful run, if the peak *anonymous* memory (sampled from memory.stat every 2 s;
+#    page cache is reclaimable and does not cause OOM kills) was >= TRAIN_MEM_HEADROOM_PCT of the
 #    limit, the limit is raised now so the next night has headroom instead of an OOM kill.
 #
 # Needs cgroup v2 (`/sys/fs/cgroup/memory.max`), the docker socket mounted and readable by this
@@ -43,8 +44,17 @@ MAX_ATTEMPTS=${TRAIN_MAX_ATTEMPTS:-6}
 TRAIN_CMD=${TRAIN_CMD:-python -m dockcast_ml}
 
 current_limit() { [ -r "$CG/memory.max" ] && cat "$CG/memory.max"; }   # bytes | "max" | ""
-peak_bytes()    { [ -r "$CG/memory.peak" ] && cat "$CG/memory.peak"; }
+peak_bytes()    { [ -r "$CG/memory.peak" ] && cat "$CG/memory.peak"; }  # lifetime peak incl. page cache
+anon_bytes()    { [ -r "$CG/memory.stat" ] && awk '$1=="anon"{print $2}' "$CG/memory.stat"; }
 oom_kills()     { [ -r "$CG/memory.events" ] && awk '$1=="oom_kill"{print $2}' "$CG/memory.events"; }
+
+sample_anon_peak() {  # sample_anon_peak <file>: keep the running max of `anon` in <file> until killed
+  local f=$1 max=0 a
+  while :; do
+    a=$(anon_bytes); if [ -n "$a" ] && [ "$a" -gt "$max" ]; then max=$a; echo "$max" > "$f"; fi
+    sleep 2
+  done
+}
 
 set_limit() {  # set_limit <bytes>: POST /containers/<self>/update. 0 on HTTP 200.
   local bytes=$1 code body
@@ -91,17 +101,21 @@ attempt=1
 while :; do
   before=$(oom_kills); limit=$(current_limit)
   log "attempt $attempt/$MAX_ATTEMPTS: $TRAIN_CMD $* (memory.max=${limit:-unknown})"
+  anonf=$(mktemp); sample_anon_peak "$anonf" & sampler=$!
   $TRAIN_CMD "$@"; rc=$?
+  { kill "$sampler"; wait "$sampler"; } 2>/dev/null
+  a=$(anon_bytes); anon_peak=$(cat "$anonf" 2>/dev/null || echo 0); rm -f "$anonf"
+  if [ -n "$a" ] && [ "$a" -gt "${anon_peak:-0}" ]; then anon_peak=$a; fi
   after=$(oom_kills); peak=$(peak_bytes)
   if [ "$rc" -eq 0 ]; then
-    if [ -n "$peak" ] && [ -n "$limit" ] && [ "$limit" != "max" ]; then
-      pct=$((peak * 100 / limit))
-      log "ok: cgroup peak $(mib "$peak") MiB = ${pct}% of the $(mib "$limit") MiB limit"
+    if [ -n "$limit" ] && [ "$limit" != "max" ] && [ "${anon_peak:-0}" -gt 0 ]; then
+      pct=$((anon_peak * 100 / limit))
+      log "ok: peak anon $(mib "$anon_peak") MiB = ${pct}% of the $(mib "$limit") MiB limit (cgroup peak incl. cache $(mib "${peak:-0}") MiB)"
       if [ "$pct" -ge "$HEADROOM_PCT" ]; then
-        raise_limit "peak ${pct}% >= ${HEADROOM_PCT}% headroom threshold" || true
+        raise_limit "peak anon ${pct}% >= ${HEADROOM_PCT}% headroom threshold" || true
       fi
     else
-      log "ok"
+      log "ok (cgroup peak incl. cache $(mib "${peak:-0}") MiB, limit ${limit:-unknown})"
     fi
     exit 0
   fi

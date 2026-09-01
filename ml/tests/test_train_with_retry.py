@@ -59,6 +59,7 @@ def harness(tmp_path: Path):
     cgroup.mkdir()
     (cgroup / "memory.max").write_text(f"{6 * GIB}\n")
     (cgroup / "memory.peak").write_text(f"{3 * GIB}\n")
+    (cgroup / "memory.stat").write_text(f"anon {2 * GIB}\nfile {GIB}\n")
     (cgroup / "memory.events").write_text("low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\n")
     # AF_UNIX paths are capped at ~104 bytes on macOS; pytest's tmp_path is too deep for that.
     sock = Path(tempfile.mkdtemp(prefix="twr")) / "d.sock"
@@ -150,9 +151,9 @@ def test_persisted_limit_is_reapplied_before_running(harness) -> None:
     assert "re-applying persisted limit 8192 MiB" in res.stderr
 
 
-def test_high_peak_raises_limit_preemptively(harness) -> None:
+def test_high_anon_peak_raises_limit_preemptively(harness) -> None:
     api, cgroup, state_file, run = harness
-    (cgroup / "memory.peak").write_text(f"{5 * GIB}\n")  # 83% of 6g
+    (cgroup / "memory.stat").write_text(f"anon {5 * GIB}\nfile {GIB}\n")  # 83% of 6g
     res = run("echo trained")
     assert res.returncode == 0
     assert api.updates[0][1]["Memory"] == 8 * GIB
@@ -160,10 +161,12 @@ def test_high_peak_raises_limit_preemptively(harness) -> None:
     assert "headroom threshold" in res.stderr
 
 
-def test_low_peak_leaves_limit_alone(harness) -> None:
-    api, _cgroup, state_file, run = harness
+def test_low_anon_peak_leaves_limit_alone(harness) -> None:
+    """Page cache is not counted: cgroup peak is 100% of the limit here, anon only 33%."""
+    api, cgroup, state_file, run = harness
+    (cgroup / "memory.peak").write_text(f"{6 * GIB}\n")
     res = run("echo trained")
     assert res.returncode == 0
     assert api.updates == []
     assert not state_file.exists()
-    assert "50% of the 6144 MiB limit" in res.stderr
+    assert "peak anon 2048 MiB = 33% of the 6144 MiB limit (cgroup peak incl. cache 6144 MiB)" in res.stderr

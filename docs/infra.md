@@ -275,11 +275,15 @@ and:
 - persists the raised limit to `/data/cache/train_mem_limit` (workercache volume) and re-applies it at
   the start of every run, so `compose up -d` recreating the container at the compose `mem_limit` does not
   undo it;
-- after a successful run, if the cgroup's peak usage (`memory.peak`, includes page cache) was
-  >= `TRAIN_MEM_HEADROOM_PCT` (default 80) of the limit, raises the limit now so the next night has
-  headroom;
-- logs one line per attempt with the limit and the peak, e.g. `ok: cgroup peak 2874 MiB = 46% of the
-  6144 MiB limit`.
+- after a successful run, if the peak anonymous memory (`anon` in `memory.stat`, sampled every 2 s;
+  `memory.peak` is not used for this because it includes reclaimable page cache and sits at the limit
+  after any file I/O) was >= `TRAIN_MEM_HEADROOM_PCT` (default 80) of the limit, raises the limit now so
+  the next night has headroom;
+- logs one line per attempt with the limit and the peaks, e.g. `ok: peak anon 2874 MiB = 46% of the
+  6144 MiB limit (cgroup peak incl. cache 6144 MiB)`.
+
+First real exercise (2026-09-01, one-off `compose run` pinned to `TRAIN_MEM_LIMIT=2g`): attempt 1 was
+OOM-killed after 4m50s, the wrapper raised the limit to 4 GiB, attempt 2 completed in 3m12s.
 
 Pick `TRAIN_MEM_MAX` so that it fits next to everything else on the host: on the home server the Docker VM
 has 13.65 GiB and the other containers use ~7 GiB, hence 8g. If the trainer ever needs more, give the VM
