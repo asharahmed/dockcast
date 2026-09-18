@@ -15,9 +15,9 @@ import { ChartTable, useChartTableToggle } from '../ui/ChartTable.js';
 import { Button } from '../ui/Button.js';
 import { EmptyState } from '../ui/EmptyState.js';
 import { MetricTooltip } from './MetricTooltip.js';
-import { horizonDurationLabel } from '../../lib/time.js';
+import { fmtDayShort, horizonDurationLabel } from '../../lib/time.js';
 import { COPY, HORIZONS } from '../../lib/constants.js';
-import { filterMetrics, tiersPresent, pivotByHorizon, TIER_TOKEN, TIER_DASHED } from '../../lib/modelMetrics.js';
+import { filterMetrics, staleDay, tiersPresent, pivotByHorizon, TIER_TOKEN, TIER_DASHED } from '../../lib/modelMetrics.js';
 import type { ModelMetricRow, MetricsTarget, MetricsSlice } from '../../api/types.js';
 
 const CHART_HEIGHT = 240 + 36;
@@ -34,6 +34,7 @@ export function BrierChart({ metrics, target, slice }: BrierChartProps) {
     (r) => r.horizon !== 0,
   );
   const tiers = tiersPresent(rows);
+  const asOf = staleDay(metrics, rows);
 
   if (rows.length === 0) {
     return <EmptyState icon="clock" title={COPY.model.charts.empty} />;
@@ -44,7 +45,14 @@ export function BrierChart({ metrics, target, slice }: BrierChartProps) {
   return (
     <div className="dc-chart flex flex-col gap-2">
       <div className="flex items-center justify-between">
-        <h3 className="text-[length:var(--fs-md)] font-medium">{COPY.model.charts.brierTitle}</h3>
+        <h3 className="text-[length:var(--fs-md)] font-medium">
+          {COPY.model.charts.brierTitle}
+          {asOf !== null && (
+            <span className="ml-1 font-normal text-[length:var(--fs-sm)] text-ink-2">
+              · {COPY.model.charts.asOf(fmtDayShort(asOf))}
+            </span>
+          )}
+        </h3>
         <Button type="button" variant="ghost" onClick={toggleTable}>
           {showTable ? COPY.station.chart.chartToggle : COPY.station.chart.table}
         </Button>

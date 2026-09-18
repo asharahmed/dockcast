@@ -18,8 +18,10 @@ import { ChartTable, useChartTableToggle } from '../ui/ChartTable.js';
 import { Button } from '../ui/Button.js';
 import { EmptyState } from '../ui/EmptyState.js';
 import { COPY } from '../../lib/constants.js';
+import { fmtDayShort } from '../../lib/time.js';
 import {
   filterMetrics,
+  staleDay,
   tiersPresent,
   buildReliabilitySeries,
   TIER_TOKEN,
@@ -68,6 +70,7 @@ export function ReliabilityChart({ metrics, target, slice }: ReliabilityChartPro
     (r) => r.window_days === 7 && r.horizon === 0 && r.target === target && r.slice === slice,
   );
   const tiers = tiersPresent(rows.length > 0 ? rows : allPooled);
+  const asOf = staleDay(metrics, allPooled);
 
   const seriesByTier = new Map(tiers.map((tier) => [tier, buildReliabilitySeries(allPooled, tier)]));
   const hasData = [...seriesByTier.values()].some((s) => s.length > 0);
@@ -88,7 +91,14 @@ export function ReliabilityChart({ metrics, target, slice }: ReliabilityChartPro
   return (
     <div className="dc-chart flex flex-col gap-2">
       <div className="flex items-center justify-between">
-        <h3 className="text-[length:var(--fs-md)] font-medium">{COPY.model.charts.reliabilityTitle}</h3>
+        <h3 className="text-[length:var(--fs-md)] font-medium">
+          {COPY.model.charts.reliabilityTitle}
+          {asOf !== null && (
+            <span className="ml-1 font-normal text-[length:var(--fs-sm)] text-ink-2">
+              · {COPY.model.charts.asOf(fmtDayShort(asOf))}
+            </span>
+          )}
+        </h3>
         <Button type="button" variant="ghost" onClick={toggleTable}>
           {showTable ? COPY.station.chart.chartToggle : COPY.station.chart.table}
         </Button>

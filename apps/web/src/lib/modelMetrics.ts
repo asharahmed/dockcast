@@ -24,6 +24,21 @@ export function filterMetrics(rows: ModelMetricRow[], opts: MetricFilter): Model
 }
 
 /**
+ * The day `rows` cover, when that day is behind the newest day in `all` — otherwise null.
+ *
+ * `GET /model` serves each `window_days` the latest day *it* has (docs/api.md §4), so a
+ * window whose nightly pass failed still renders instead of collapsing to the empty
+ * state. It is then covering an older stretch than the page's other numbers, which the
+ * chart title has to say out loud. ISO days compare lexicographically.
+ */
+export function staleDay(all: ModelMetricRow[], rows: ModelMetricRow[]): string | null {
+  const day = rows[0]?.day;
+  if (day === undefined) return null;
+  const newest = all.reduce((max, r) => (r.day > max ? r.day : max), day);
+  return day < newest ? day : null;
+}
+
+/**
  * Fixed slot order for chart series (ui-spec.md §2.2 chart series tokens,
  * §4.5: "series in fixed order/tokens... missing tiers simply absent (never
  * re-coloured)").

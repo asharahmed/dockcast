@@ -124,7 +124,7 @@ ModelResponse: {
   collector: { last_ok_at: string|null, uptime_7d_pct: number|null },   // percent 0-100 (1 decimal): ok polls / expected polls (one per minute) over the last 7 d, or since the first poll if younger than 7 d; capped at 100
   predictor: { last_run_at: string|null, serving_tier: 'gbm'|'bd_cal'|'bd_raw'|'none' },
   active: { gbm: ModelVersionSummary|null, bd: ModelVersionSummary|null },
-  metrics: [{ day, window_days, tier, target, horizon, slice, metric, value, n }],  // all rows for the latest `day` present; metric names: brier, logloss, auc, ece, mae, rmse, n, and reliability bins rel_bin_<0..9>_{mean_pred,frac_pos,n} (horizon 0 = pooled)
+  metrics: [{ day, window_days, tier, target, horizon, slice, metric, value, n }],  // all rows for the latest `day` present *per* `window_days` (the nightly job can leave a newest day with 1-day rows only); metric names: brier, logloss, auc, ece, mae, rmse, n, and reliability bins rel_bin_<0..9>_{mean_pred,frac_pos,n} (horizon 0 = pooled)
   versions: ModelVersionSummary[]              // last 30, newest first
 }
 ModelVersionSummary: { id, tier, status, trained_for_date, created_at, activated_at, feature_schema_version, train_window: [string,string]|null, metrics_val: MetricsVal|null, gate: Gate|null }

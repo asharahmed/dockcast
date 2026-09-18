@@ -4,7 +4,7 @@
  * `@dockcast/shared` (plan.md §1 R5) — this module only formats for display.
  */
 import { TZDate } from '@date-fns/tz';
-import { format, formatDistanceStrict } from 'date-fns';
+import { format, formatDistanceStrict, parseISO } from 'date-fns';
 import { localParts, zonedTimeToUtc } from '@dockcast/shared';
 
 const HHMM_RE = /^([01]\d|2[0-3]):([0-5]\d)$/;
@@ -12,6 +12,15 @@ const HHMM_RE = /^([01]\d|2[0-3]):([0-5]\d)$/;
 /** Format an instant as wall-clock time in `tzName`. Default `h:mm a` (ui-spec.md §5). */
 export function fmtLocalTime(date: Date, tzName: string, formatStr = 'h:mm a'): string {
   return format(TZDate.tz(tzName, date), formatStr);
+}
+
+/**
+ * Format a plain `YYYY-MM-DD` day (a `model_metrics_daily.day`) as `d MMM`.
+ * `parseISO` reads a date-only string as local midnight, so the day never
+ * slides backwards the way `new Date('2026-09-12')` (UTC midnight) would.
+ */
+export function fmtDayShort(day: string): string {
+  return format(parseISO(day), 'd MMM');
 }
 
 /** Parse a validated `HH:MM` string (throws on malformed input). */

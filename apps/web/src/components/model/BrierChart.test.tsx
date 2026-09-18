@@ -52,4 +52,30 @@ describe('BrierChart', () => {
       screen.getByText('No scored forecasts yet. Scores appear after the first full day of forecasts.'),
     ).toBeInTheDocument();
   });
+
+  it('says which day it covers when the 7-day window is behind the newest metrics day', () => {
+    // What a trainer that died between the 1-day and 7-day passes leaves behind: the API
+    // serves each window its own latest day, so the chart renders but is a day short.
+    const metrics: ModelMetricRow[] = [
+      ...buildRows(),
+      {
+        day: '2026-08-17',
+        window_days: 1,
+        tier: 'gbm_active',
+        target: 'bike',
+        horizon: 0,
+        slice: 'all',
+        metric: 'brier',
+        value: 0.1,
+        n: 100,
+      },
+    ];
+    render(<BrierChart metrics={metrics} target="bike" slice="all" />);
+    expect(screen.getByText('· scored through 16 Aug')).toBeInTheDocument();
+  });
+
+  it('says nothing about the day when every window is scored for the same day', () => {
+    render(<BrierChart metrics={buildRows()} target="bike" slice="all" />);
+    expect(screen.queryByText(/scored through/)).not.toBeInTheDocument();
+  });
 });

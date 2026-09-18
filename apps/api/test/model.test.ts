@@ -115,3 +115,41 @@ describe('GET /model, GET /model/versions/:id', () => {
     });
   });
 });
+
+/**
+ * Regression for the fault behind "No scored forecasts yet" on /model, Sep 13-18 2026:
+ * the trainer was OOM-killed between the 1-day and 7-day passes of `metrics_online`
+ * every night, so the newest `day` in `model_metrics_daily` had 1-day rows only and a
+ * global `max(day)` hid every 7-day row from the page.
+ */
+describe('GET /model — windows fall back to their own latest day', () => {
+  let ctx: TestContext;
+
+  beforeAll(async () => {
+    ctx = await setupTestApp();
+    // A newer day for the 1-day window only, as a run that died mid-`compute` leaves behind.
+    await ctx.pool.query(
+      `INSERT INTO model_metrics_daily (city_id, day, window_days, tier, target, horizon, slice, metric, value, n)
+       SELECT id, '2026-03-10', 1, 'gbm_active', 'bike', 0, 'all', 'brier', 0.11, 5100
+       FROM cities WHERE slug = 'toronto'`,
+    );
+  }, 60_000);
+
+  afterAll(async () => {
+    await ctx.teardown();
+  });
+
+  it('serves the newest 1-day rows and still serves the older 7-day rows', async () => {
+    const res = await request(ctx.app).get('/api/v1/model').query({ city: 'toronto' });
+    expect(res.status).toBe(200);
+    const body = modelResponseSchema.parse(res.body);
+
+    const w1 = body.metrics.filter((m) => m.window_days === 1);
+    const w7 = body.metrics.filter((m) => m.window_days === 7);
+
+    expect(w1.length).toBeGreaterThan(0);
+    expect(w1.every((m) => m.day === '2026-03-10')).toBe(true);
+    expect(w7.length).toBeGreaterThan(0);
+    expect(w7.every((m) => m.day === '2026-03-09')).toBe(true);
+  });
+});

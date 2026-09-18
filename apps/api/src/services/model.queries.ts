@@ -71,14 +71,29 @@ export interface ModelMetricRow {
   n: number;
 }
 
-/** All rows for the latest `day` present for this city (`[]` if none). */
+/**
+ * The latest `day` present *per `window_days`* for this city (`[]` if none).
+ *
+ * Not one global `max(day)`: the nightly job writes the 1-day window before the 7-day
+ * one and commits between them, so a run that dies in between leaves a newest day that
+ * has 1-day rows only. Keyed off the global maximum, every 7-day chart on `/model` then
+ * renders its empty state even though the previous day's 7-day rows are right there.
+ * Each window falls back to its own newest day instead, and the rows carry `day` so the
+ * client can label a window that has fallen behind.
+ */
 export async function getLatestDailyMetrics(pool: Pool, cityId: number): Promise<ModelMetricRow[]> {
   return many<ModelMetricRow>(
     pool,
-    `SELECT day::text AS day, window_days, tier, target, horizon, slice, metric, value, n
-     FROM model_metrics_daily
-     WHERE city_id = $1 AND day = (SELECT max(day) FROM model_metrics_daily WHERE city_id = $1)
-     ORDER BY window_days, tier, target, horizon, slice, metric`,
+    `WITH latest AS (
+       SELECT window_days, max(day) AS day
+       FROM model_metrics_daily WHERE city_id = $1 GROUP BY window_days
+     )
+     SELECT m.day::text AS day, m.window_days, m.tier, m.target, m.horizon, m.slice,
+            m.metric, m.value, m.n
+     FROM model_metrics_daily m
+     JOIN latest l ON l.window_days = m.window_days AND l.day = m.day
+     WHERE m.city_id = $1
+     ORDER BY m.window_days, m.tier, m.target, m.horizon, m.slice, m.metric`,
     [cityId],
   );
 }

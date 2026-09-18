@@ -334,6 +334,9 @@ export const COPY = {
         `Predicted ${predPct} → happened ${obsPct} (n ${n.toLocaleString()})`,
       perfectLabel: 'perfect',
       empty: 'No scored forecasts yet. Scores appear after the first full day of forecasts.',
+      // SPEC-GAP: ui-spec.md §4.5 assumes every window is scored for the same day. The API
+      // serves each window its own latest day, so a chart can be behind the rest of the page.
+      asOf: (day: string) => `scored through ${day}`,
       nSuffix: (n: number) => `n ${n.toLocaleString()}`,
     },
     tierNames: {
