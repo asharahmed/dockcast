@@ -28,6 +28,23 @@ JOIN stations s ON s.id = h.station_pk
 WHERE s.city_id = %(city_id)s AND h.t0 >= %(t_from)s AND h.t0 < %(t_to)s
 """
 
+# Narrow dtypes for the window frame: the 7-day window is ~13M rows (2026-09), and at
+# psycopg's native widths (float64/int64/str per row) it does not fit in the trainer's
+# memory limit. Widths follow the column types in db/migrations/0001_init.sql.
+_WINDOW_DTYPES = {
+    "station_pk": "int32",
+    "horizon": "int16",
+    "tier": "category",
+    "p_bike": "float32",
+    "p_dock": "float32",
+    "exp_bikes": "float32",
+    "bikes0": "int16",
+    "docks0": "int16",
+    "y_bike": "bool",
+    "y_dock": "bool",
+    "y_cnt": "int16",
+}
+
 _UPSERT_COLS = ["city_id", "day", "window_days", "tier", "target", "horizon", "slice", "metric", "value", "n"]
 _CONFLICT_COLS = ["city_id", "day", "window_days", "tier", "target", "horizon", "slice", "metric"]
 _UPDATE_COLS = ["value", "n"]
@@ -63,7 +80,16 @@ def compute(conn: psycopg.Connection, city: dict[str, Any], t: date, windows: tu
     for w in windows:
         t_from = local_midnight(t - timedelta(days=w), tz)
         t_to = local_midnight(t, tz)
-        df = db.fetch_df(conn, _WINDOW_SQL, {"city_id": city_id, "t_from": t_from, "t_to": t_to})
+        df = db.fetch_df_chunked(
+            conn,
+            _WINDOW_SQL,
+            {"city_id": city_id, "t_from": t_from, "t_to": t_to},
+            dtypes=_WINDOW_DTYPES,
+        )
+        # Chunks carry their own category sets, which `concat` resolves to object; the
+        # column then holds a handful of shared strings, so re-categorising is cheap.
+        if not df.empty and df["tier"].dtype == object:
+            df["tier"] = df["tier"].astype("category")
 
         if df.empty:
             summary["windows"][w] = {"n_rows": 0, "tiers": []}

@@ -122,7 +122,9 @@ def copy_rows(cur, table: str, cols: list[str], rows: Iterable[tuple]) -> int
       # with cur.copy(f"COPY {table} ({','.join(cols)}) FROM STDIN") as cp: for r in rows: cp.write_row(r)
 def copy_df(cur, table, df: pd.DataFrame) -> int               # columns == df.columns; NaN -> NULL
 def upsert_rows(cur, table, cols, conflict_cols, update_cols, rows)  # INSERT ... ON CONFLICT (...) DO UPDATE SET c=EXCLUDED.c
-def fetch_df(conn, sql, params) -> pd.DataFrame
+def fetch_df(conn, sql, params) -> pd.DataFrame                 # buffers the whole result; small reads only
+def fetch_df_chunked(conn, sql, params, *, dtypes=None, chunk_rows=250_000) -> pd.DataFrame
+      # server-side cursor inside an explicit transaction; casts each chunk to `dtypes` before concat
 @contextmanager
 def worker_run(cfg, kind: str, city_id: int|None) -> Iterator[dict]:
       # uses its OWN autocommit connection:
@@ -495,7 +497,7 @@ SELECT h.station_pk, h.t0, h.horizon, h.tier, h.p_bike, h.p_dock, h.exp_bikes, l
 FROM forecast_history h JOIN forecast_labels l USING (station_pk,t0,horizon) JOIN stations s ON s.id=h.station_pk
 WHERE s.city_id=%s AND h.t0 >= %s AND h.t0 < %s
 ```
-Pivot by tier. Base rows = `bd_raw` rows; `persistence` computed on base rows (`p_bike=(bikes0>=1)`, `p_dock=(docks0>=1)`, `cnt=bikes0`); each other tier on its own rows (inner-joined to base). `metric_rows` per tier → upsert `model_metrics_daily (city_id, day=T, window_days=w, tier, target, horizon, slice, metric, value, n)` `ON CONFLICT (...) DO UPDATE SET value=EXCLUDED.value, n=EXCLUDED.n`. Also `collector uptime` is **not** computed here (api computes from `poll_log`).
+The window is read with `fetch_df_chunked` and cast to the DB's own column widths (`real` -> float32, `smallint` -> int16, `tier` -> category), which is lossless: the 7-day window passed 12M rows in Sept 2026 and buffering it as psycopg dicts OOM-killed the trainer. Pivot by tier. Base rows = `bd_raw` rows; `persistence` computed on base rows (`p_bike=(bikes0>=1)`, `p_dock=(docks0>=1)`, `cnt=bikes0`); each other tier on its own rows (inner-joined to base). `metric_rows` per tier → upsert `model_metrics_daily (city_id, day=T, window_days=w, tier, target, horizon, slice, metric, value, n)` `ON CONFLICT (...) DO UPDATE SET value=EXCLUDED.value, n=EXCLUDED.n`. Also `collector uptime` is **not** computed here (api computes from `poll_log`).
 
 ### 8.4 `model_versions` write (single active per (city,tier))
 ```sql

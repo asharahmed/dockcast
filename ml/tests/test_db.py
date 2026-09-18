@@ -5,7 +5,8 @@ tests/test_neighbors.py)."""
 from __future__ import annotations
 
 import math
-from datetime import UTC, datetime
+import os
+from datetime import UTC, datetime, timedelta
 
 import pandas as pd
 import psycopg
@@ -108,3 +109,82 @@ def test_worker_run_records_success_and_failure(db_conn: psycopg.Connection, syn
     assert len(fail_rows) == 1
     assert "boom" in fail_rows["error"].iloc[0]
     assert fail_rows["summary"].iloc[0]["partial"] == 1
+
+
+def _seed_weather(conn: psycopg.Connection, city_id: int, n: int) -> None:
+    base = datetime(2026, 2, 1, tzinfo=UTC)
+    frame = pd.DataFrame(
+        {
+            "city_id": [city_id] * n,
+            "hour": [base + timedelta(hours=i) for i in range(n)],
+            "temp_c": [float(i) for i in range(n)],
+            "precip_mm": [0.5 * i for i in range(n)],
+            "wind_kmh": [10.0 + i for i in range(n)],
+        }
+    )
+    with conn.cursor() as cur:
+        db.copy_df(cur, "weather_history", frame)
+    conn.commit()
+
+
+_WEATHER_SQL = "SELECT city_id, hour, temp_c, wind_kmh FROM weather_history WHERE city_id=%(c)s ORDER BY hour"
+
+
+@pytest.mark.db
+def test_fetch_df_chunked_matches_fetch_df_across_chunk_boundaries(
+    db_conn: psycopg.Connection, synthetic_city: int
+) -> None:
+    """Rows spanning several fetches (and a final short one) come back whole and in order."""
+    _seed_weather(db_conn, synthetic_city, 7)
+    params = {"c": synthetic_city}
+
+    expected = db.fetch_df(db_conn, _WEATHER_SQL, params)
+    got = db.fetch_df_chunked(db_conn, _WEATHER_SQL, params, chunk_rows=2)
+
+    assert list(got.columns) == list(expected.columns)
+    assert len(got) == 7
+    assert got["temp_c"].tolist() == expected["temp_c"].tolist()
+    assert got["hour"].tolist() == expected["hour"].tolist()
+
+
+@pytest.mark.db
+def test_fetch_df_chunked_narrows_dtypes_and_ignores_unknown_columns(
+    db_conn: psycopg.Connection, synthetic_city: int
+) -> None:
+    _seed_weather(db_conn, synthetic_city, 5)
+
+    got = db.fetch_df_chunked(
+        db_conn,
+        _WEATHER_SQL,
+        {"c": synthetic_city},
+        dtypes={"city_id": "int32", "temp_c": "float32", "not_selected": "int8"},
+        chunk_rows=2,
+    )
+
+    assert got["city_id"].dtype == "int32"
+    assert got["temp_c"].dtype == "float32"
+    assert got["wind_kmh"].dtype == "float64"  # untouched
+    assert got["temp_c"].tolist() == [0.0, 1.0, 2.0, 3.0, 4.0]
+
+
+@pytest.mark.db
+def test_fetch_df_chunked_empty_result_keeps_columns(db_conn: psycopg.Connection, synthetic_city: int) -> None:
+    got = db.fetch_df_chunked(db_conn, _WEATHER_SQL, {"c": synthetic_city})
+    assert got.empty
+    assert list(got.columns) == ["city_id", "hour", "temp_c", "wind_kmh"]
+
+
+@pytest.mark.db
+def test_fetch_df_chunked_inside_a_transaction(db_conn: psycopg.Connection, synthetic_city: int) -> None:
+    """The trainer's connection is not autocommit; the cursor must work there too."""
+    _seed_weather(db_conn, synthetic_city, 4)
+
+    conn = psycopg.connect(os.environ["DATABASE_URL_TEST"], autocommit=False)
+    try:
+        got = db.fetch_df_chunked(conn, _WEATHER_SQL, {"c": synthetic_city}, chunk_rows=3)
+        conn.commit()
+    finally:
+        conn.close()
+
+    assert len(got) == 4
+    assert got["temp_c"].tolist() == [0.0, 1.0, 2.0, 3.0]

@@ -9,7 +9,7 @@ from typing import Any
 
 import pandas as pd
 import psycopg
-from psycopg.rows import dict_row
+from psycopg.rows import dict_row, tuple_row
 
 from dockcast_ml.config import Config
 
@@ -89,11 +89,74 @@ def upsert_rows(
 
 
 def fetch_df(conn: psycopg.Connection, sql: str, params: Any = None) -> pd.DataFrame:
-    """Run `sql` and return the result as a DataFrame (empty DataFrame if no rows)."""
+    """Run `sql` and return the result as a DataFrame (empty DataFrame if no rows).
+
+    Buffers the whole result set as Python dicts before building the frame, so it is
+    only for result sets of at most a few hundred thousand rows; use
+    `fetch_df_chunked` for anything larger.
+    """
     with conn.cursor(row_factory=dict_row) as cur:
         cur.execute(sql, params)
         rows = cur.fetchall()
     return pd.DataFrame(rows)
+
+
+_CHUNK_ROWS = 250_000
+
+
+def fetch_df_chunked(
+    conn: psycopg.Connection,
+    sql: str,
+    params: Any = None,
+    *,
+    dtypes: Mapping[str, str] | None = None,
+    chunk_rows: int = _CHUNK_ROWS,
+    name: str = "dockcast_fetch",
+) -> pd.DataFrame:
+    """Like `fetch_df`, but streams the result through a server-side cursor.
+
+    Fetches `chunk_rows` at a time, narrows each chunk to `dtypes` (a
+    `{column: pandas dtype}` map; columns absent from the result are ignored) and
+    concatenates. Only the current chunk is ever held as Python objects, so peak
+    memory is the size of the narrowed frame rather than of the whole result set as
+    boxed dicts -- the difference between ~0.5 GiB and ~7 GiB for the 7-day window
+    in `metrics_online` (12.7M rows x 12 columns as of 2026-09).
+
+    The explicit `conn.transaction()` block is what keeps the cursor streaming: on an
+    autocommit connection the `DECLARE` would otherwise be committed on its own, taking
+    the cursor with it, and declaring it `WITH HOLD` instead would make the server
+    materialise the whole result set. Inside an open transaction the block is a
+    savepoint, so a caller's pending writes are neither committed nor disturbed.
+    """
+    frames: list[pd.DataFrame] = []
+    cols: list[str] = []
+    with conn.transaction(), conn.cursor(name=name, row_factory=tuple_row) as cur:
+        cur.itersize = chunk_rows
+        cur.execute(sql, params)
+        cols = [d.name for d in cur.description or []]
+        while True:
+            rows = cur.fetchmany(chunk_rows)
+            if not rows:
+                break
+            chunk = pd.DataFrame(rows, columns=cols)
+            del rows
+            frames.append(_narrow(chunk, dtypes))
+
+    if not frames:
+        return pd.DataFrame(columns=cols)
+    if len(frames) == 1:
+        return frames[0]
+    out = pd.concat(frames, ignore_index=True)
+    frames.clear()
+    return out
+
+
+def _narrow(df: pd.DataFrame, dtypes: Mapping[str, str] | None) -> pd.DataFrame:
+    """Cast the columns of `df` named in `dtypes` (unknown names ignored)."""
+    if not dtypes:
+        return df
+    present = {c: t for c, t in dtypes.items() if c in df.columns}
+    return df.astype(present) if present else df
 
 
 @contextmanager
