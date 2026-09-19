@@ -148,6 +148,8 @@ def test_metrics_online_chunked_window_matches_single_chunk(
         cur.execute("DELETE FROM model_metrics_daily WHERE city_id=%(c)s", {"c": synthetic_city})
     db_conn.commit()
 
+    # The `metrics_online` global, not `db.CHUNK_ROWS`: `fetch_df_chunked`'s own default
+    # binds at def time, so patching it there would leave this run on one batch.
     monkeypatch.setattr(metrics_online, "_CHUNK_ROWS", 7)
     chunked = compute(db_conn, city, t, windows=(1, 7))
     after = _metrics_rows(db_conn, synthetic_city, t).set_index(
