@@ -17,14 +17,15 @@ export function fmtLocalTime(date: Date, tzName: string, formatStr = 'h:mm a'): 
 /**
  * Format the last day a `model_metrics_daily.day` actually covers, as `d MMM`.
  *
- * There is deliberately no plain `fmtDay(day)` next to this: every day this app formats
- * comes from `model_metrics_daily`, and formatting one as-is is the off-by-one below.
- *
  * `day` is the window's *exclusive* upper bound: `metrics_online.compute` scores
  * `t0 ∈ [midnight(day - window_days), midnight(day))`, so rows stamped `2026-08-16`
- * cover forecasts made up to the end of 15 Aug. (The `0001_init.sql` comment calling
- * `day` inclusive is wrong; migration files are checksummed, so it cannot be corrected
- * in place — `docs/worker-spec.md` §8.3 carries the right reading.)
+ * cover forecasts made up to the end of 15 Aug. Never render such a day as-is; this is
+ * the only formatter that should touch one. (The `0001_init.sql` comment calling `day`
+ * inclusive is wrong; migration files are checksummed, so it cannot be corrected in
+ * place — `docs/worker-spec.md` §8.3 carries the right reading.)
+ *
+ * `parseISO` reads a date-only string as local midnight, so the result cannot slide back
+ * a day west of UTC the way `new Date('2026-08-16')` would.
  */
 export function fmtWindowThroughShort(day: string): string {
   return format(subDays(parseISO(day), 1), 'd MMM');
