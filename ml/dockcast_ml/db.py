@@ -101,7 +101,9 @@ def fetch_df(conn: psycopg.Connection, sql: str, params: Any = None) -> pd.DataF
     return pd.DataFrame(rows)
 
 
-_CHUNK_ROWS = 250_000
+# Default batch size for `fetch_df_chunked`; callers override it to exercise the
+# multi-chunk path in tests.
+CHUNK_ROWS = 250_000
 
 
 def fetch_df_chunked(
@@ -110,7 +112,7 @@ def fetch_df_chunked(
     params: Any = None,
     *,
     dtypes: Mapping[str, str] | None = None,
-    chunk_rows: int = _CHUNK_ROWS,
+    chunk_rows: int = CHUNK_ROWS,
     name: str = "dockcast_fetch",
 ) -> pd.DataFrame:
     """Like `fetch_df`, but streams the result through a server-side cursor.

@@ -3,6 +3,8 @@ import { render, screen } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { HORIZONS } from '@dockcast/shared';
 import { BrierChart } from './BrierChart.js';
+import { chartCaption } from './ChartHeading.js';
+import { COPY } from '../../lib/constants.js';
 import type { ModelMetricRow } from '../../api/types.js';
 
 function buildRows(): ModelMetricRow[] {
@@ -78,13 +80,18 @@ describe('BrierChart', () => {
     expect(screen.getByText('· scored through 15 Aug')).toBeInTheDocument();
   });
 
-  it('carries the same note in the table twin caption (the table\'s accessible name)', async () => {
+  it('reads identically in the heading and the table twin caption, space for space', async () => {
     const user = userEvent.setup();
     render(<BrierChart metrics={behindByADay()} target="bike" slice="all" />);
-    await user.click(screen.getByRole('button', { name: 'Table' }));
-    expect(screen.getByRole('table')).toHaveAccessibleName(
+    const expected = chartCaption(COPY.model.charts.brierTitle, '2026-08-16');
+    expect(expected).toBe(
       'Brier score by horizon (lower is better) · last 7 days · scored through 15 Aug',
     );
+    // Same text both ways: the caption is the table's accessible name, and a heading that
+    // ran "days·" together is what a screen reader would announce.
+    expect(screen.getByRole('heading', { level: 3 }).textContent).toBe(expected);
+    await user.click(screen.getByRole('button', { name: 'Table' }));
+    expect(screen.getByRole('table')).toHaveAccessibleName(expected);
   });
 
   it('leaves the table caption bare when the window is current', async () => {

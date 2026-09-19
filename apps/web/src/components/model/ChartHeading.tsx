@@ -8,12 +8,13 @@
 import { COPY } from '../../lib/constants.js';
 import { fmtWindowThroughShort } from '../../lib/time.js';
 
+/** The suffix, separator included, so the heading and the caption cannot drift apart. */
 function note(asOf: string): string {
-  return COPY.model.charts.asOf(fmtWindowThroughShort(asOf));
+  return ` · ${COPY.model.charts.asOf(fmtWindowThroughShort(asOf))}`;
 }
 
 export function chartCaption(title: string, asOf: string | null): string {
-  return asOf === null ? title : `${title} · ${note(asOf)}`;
+  return asOf === null ? title : `${title}${note(asOf)}`;
 }
 
 export interface ChartHeadingProps {
@@ -27,9 +28,7 @@ export function ChartHeading({ title, asOf }: ChartHeadingProps) {
     <h3 className="text-[length:var(--fs-md)] font-medium">
       {title}
       {asOf !== null && (
-        <span className="ml-1 font-normal text-[length:var(--fs-sm)] text-ink-2">
-          · {note(asOf)}
-        </span>
+        <span className="font-normal text-[length:var(--fs-sm)] text-ink-2">{note(asOf)}</span>
       )}
     </h3>
   );

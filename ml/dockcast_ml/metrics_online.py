@@ -45,10 +45,10 @@ _WINDOW_DTYPES = {
     "y_cnt": "int16",
 }
 
-# Batch size for the window read. Passed explicitly rather than left to
-# `fetch_df_chunked`'s default so a test can shrink it and exercise the multi-chunk path
-# (several `fetch`es, `pd.concat`, the `tier` re-categorisation below).
-_CHUNK_ROWS = 250_000
+# Batch size for the window read: `db.CHUNK_ROWS`, named here only so a test can shrink
+# it and exercise the multi-chunk path (several `fetch`es, `pd.concat`, the `tier`
+# re-categorisation below) against a window that would otherwise fit in one batch.
+_CHUNK_ROWS = db.CHUNK_ROWS
 
 _UPSERT_COLS = ["city_id", "day", "window_days", "tier", "target", "horizon", "slice", "metric", "value", "n"]
 _CONFLICT_COLS = ["city_id", "day", "window_days", "tier", "target", "horizon", "slice", "metric"]

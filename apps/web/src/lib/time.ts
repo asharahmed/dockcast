@@ -15,16 +15,10 @@ export function fmtLocalTime(date: Date, tzName: string, formatStr = 'h:mm a'): 
 }
 
 /**
- * Format a plain `YYYY-MM-DD` day as `d MMM`. `parseISO` reads a date-only string as
- * local midnight, so the day never slides backwards the way `new Date('2026-09-12')`
- * (UTC midnight) would.
- */
-export function fmtDayShort(day: string): string {
-  return format(parseISO(day), 'd MMM');
-}
-
-/**
  * Format the last day a `model_metrics_daily.day` actually covers, as `d MMM`.
+ *
+ * There is deliberately no plain `fmtDay(day)` next to this: every day this app formats
+ * comes from `model_metrics_daily`, and formatting one as-is is the off-by-one below.
  *
  * `day` is the window's *exclusive* upper bound: `metrics_online.compute` scores
  * `t0 ∈ [midnight(day - window_days), midnight(day))`, so rows stamped `2026-08-16`

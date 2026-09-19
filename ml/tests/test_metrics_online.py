@@ -141,6 +141,13 @@ def test_metrics_online_chunked_window_matches_single_chunk(
         ["window_days", "tier", "target", "horizon", "slice", "metric"]
     ).sort_index()
 
+    # Both runs upsert the same keys, so without clearing the table a key the chunked run
+    # stops emitting would silently keep the single-batch value and every assertion below
+    # would pass on it.
+    with db_conn.cursor() as cur:
+        cur.execute("DELETE FROM model_metrics_daily WHERE city_id=%(c)s", {"c": synthetic_city})
+    db_conn.commit()
+
     monkeypatch.setattr(metrics_online, "_CHUNK_ROWS", 7)
     chunked = compute(db_conn, city, t, windows=(1, 7))
     after = _metrics_rows(db_conn, synthetic_city, t).set_index(
