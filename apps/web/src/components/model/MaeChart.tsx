@@ -17,7 +17,8 @@ import { ChartTable, useChartTableToggle } from '../ui/ChartTable.js';
 import { Button } from '../ui/Button.js';
 import { EmptyState } from '../ui/EmptyState.js';
 import { MetricTooltip } from './MetricTooltip.js';
-import { fmtDayShort, horizonDurationLabel } from '../../lib/time.js';
+import { ChartHeading, chartCaption } from './ChartHeading.js';
+import { horizonDurationLabel } from '../../lib/time.js';
 import { COPY, HORIZONS } from '../../lib/constants.js';
 import { filterMetrics, staleDay, tiersPresent, pivotByHorizon, TIER_TOKEN, TIER_DASHED } from '../../lib/modelMetrics.js';
 import type { ModelMetricRow, MetricsSlice } from '../../api/types.js';
@@ -46,14 +47,7 @@ export function MaeChart({ metrics, slice }: MaeChartProps) {
   return (
     <div className="dc-chart flex flex-col gap-2">
       <div className="flex items-center justify-between">
-        <h3 className="text-[length:var(--fs-md)] font-medium">
-          {COPY.model.charts.maeTitle}
-          {asOf !== null && (
-            <span className="ml-1 font-normal text-[length:var(--fs-sm)] text-ink-2">
-              · {COPY.model.charts.asOf(fmtDayShort(asOf))}
-            </span>
-          )}
-        </h3>
+        <ChartHeading title={COPY.model.charts.maeTitle} asOf={asOf} />
         <Button type="button" variant="ghost" onClick={toggleTable}>
           {showTable ? COPY.station.chart.chartToggle : COPY.station.chart.table}
         </Button>
@@ -65,7 +59,7 @@ export function MaeChart({ metrics, slice }: MaeChartProps) {
 
       {showTable ? (
         <ChartTable
-          caption={COPY.model.charts.maeTitle}
+          caption={chartCaption(COPY.model.charts.maeTitle, asOf)}
           columns={[
             { key: 'horizon', label: 'Horizon', format: (v) => horizonDurationLabel(v as number) },
             ...tiers.map((tier) => ({

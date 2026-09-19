@@ -4,7 +4,7 @@
  * `@dockcast/shared` (plan.md §1 R5) — this module only formats for display.
  */
 import { TZDate } from '@date-fns/tz';
-import { format, formatDistanceStrict, parseISO } from 'date-fns';
+import { format, formatDistanceStrict, parseISO, subDays } from 'date-fns';
 import { localParts, zonedTimeToUtc } from '@dockcast/shared';
 
 const HHMM_RE = /^([01]\d|2[0-3]):([0-5]\d)$/;
@@ -15,12 +15,25 @@ export function fmtLocalTime(date: Date, tzName: string, formatStr = 'h:mm a'): 
 }
 
 /**
- * Format a plain `YYYY-MM-DD` day (a `model_metrics_daily.day`) as `d MMM`.
- * `parseISO` reads a date-only string as local midnight, so the day never
- * slides backwards the way `new Date('2026-09-12')` (UTC midnight) would.
+ * Format a plain `YYYY-MM-DD` day as `d MMM`. `parseISO` reads a date-only string as
+ * local midnight, so the day never slides backwards the way `new Date('2026-09-12')`
+ * (UTC midnight) would.
  */
 export function fmtDayShort(day: string): string {
   return format(parseISO(day), 'd MMM');
+}
+
+/**
+ * Format the last day a `model_metrics_daily.day` actually covers, as `d MMM`.
+ *
+ * `day` is the window's *exclusive* upper bound: `metrics_online.compute` scores
+ * `t0 ∈ [midnight(day - window_days), midnight(day))`, so rows stamped `2026-08-16`
+ * cover forecasts made up to the end of 15 Aug. (The `0001_init.sql` comment calling
+ * `day` inclusive is wrong; migration files are checksummed, so it cannot be corrected
+ * in place — `docs/worker-spec.md` §8.3 carries the right reading.)
+ */
+export function fmtWindowThroughShort(day: string): string {
+  return format(subDays(parseISO(day), 1), 'd MMM');
 }
 
 /** Parse a validated `HH:MM` string (throws on malformed input). */

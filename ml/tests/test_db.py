@@ -11,6 +11,7 @@ from datetime import UTC, datetime, timedelta
 import pandas as pd
 import psycopg
 import pytest
+from psycopg.pq import TransactionStatus
 
 from dockcast_ml import db
 
@@ -175,16 +176,32 @@ def test_fetch_df_chunked_empty_result_keeps_columns(db_conn: psycopg.Connection
 
 
 @pytest.mark.db
-def test_fetch_df_chunked_inside_a_transaction(db_conn: psycopg.Connection, synthetic_city: int) -> None:
-    """The trainer's connection is not autocommit; the cursor must work there too."""
+def test_fetch_df_chunked_inside_an_open_transaction(
+    db_conn: psycopg.Connection, synthetic_city: int
+) -> None:
+    """`metrics_online.compute` is reached mid-transaction, with the trainer's own writes
+    uncommitted: there `conn.transaction()` opens a savepoint rather than a top-level
+    BEGIN. Those writes must be visible to the read and must still be discardable after
+    it — a stray COMMIT inside the helper would strand a half-written training run.
+    """
     _seed_weather(db_conn, synthetic_city, 4)
 
     conn = psycopg.connect(os.environ["DATABASE_URL_TEST"], autocommit=False)
     try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO weather_history (city_id, hour, temp_c, precip_mm, wind_kmh) "
+                "VALUES (%s, %s, 99.0, 0.0, 0.0)",
+                (synthetic_city, datetime(2026, 2, 2, tzinfo=UTC)),
+            )
+        assert conn.info.transaction_status == TransactionStatus.INTRANS
+
         got = db.fetch_df_chunked(conn, _WEATHER_SQL, {"c": synthetic_city}, chunk_rows=3)
-        conn.commit()
+        assert got["temp_c"].tolist() == [0.0, 1.0, 2.0, 3.0, 99.0]
+        assert conn.info.transaction_status == TransactionStatus.INTRANS
+
+        conn.rollback()
+        kept = db.fetch_df(conn, _WEATHER_SQL, {"c": synthetic_city})
+        assert kept["temp_c"].tolist() == [0.0, 1.0, 2.0, 3.0]
     finally:
         conn.close()
-
-    assert len(got) == 4
-    assert got["temp_c"].tolist() == [0.0, 1.0, 2.0, 3.0]

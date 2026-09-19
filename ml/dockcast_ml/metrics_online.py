@@ -45,6 +45,11 @@ _WINDOW_DTYPES = {
     "y_cnt": "int16",
 }
 
+# Batch size for the window read. Passed explicitly rather than left to
+# `fetch_df_chunked`'s default so a test can shrink it and exercise the multi-chunk path
+# (several `fetch`es, `pd.concat`, the `tier` re-categorisation below).
+_CHUNK_ROWS = 250_000
+
 _UPSERT_COLS = ["city_id", "day", "window_days", "tier", "target", "horizon", "slice", "metric", "value", "n"]
 _CONFLICT_COLS = ["city_id", "day", "window_days", "tier", "target", "horizon", "slice", "metric"]
 _UPDATE_COLS = ["value", "n"]
@@ -85,6 +90,7 @@ def compute(conn: psycopg.Connection, city: dict[str, Any], t: date, windows: tu
             _WINDOW_SQL,
             {"city_id": city_id, "t_from": t_from, "t_to": t_to},
             dtypes=_WINDOW_DTYPES,
+            chunk_rows=_CHUNK_ROWS,
         )
         # Chunks carry their own category sets, which `concat` resolves to object; the
         # column then holds a handful of shared strings, so re-categorising is cheap.

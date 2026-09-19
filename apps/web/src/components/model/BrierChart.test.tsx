@@ -53,10 +53,10 @@ describe('BrierChart', () => {
     ).toBeInTheDocument();
   });
 
-  it('says which day it covers when the 7-day window is behind the newest metrics day', () => {
-    // What a trainer that died between the 1-day and 7-day passes leaves behind: the API
-    // serves each window its own latest day, so the chart renders but is a day short.
-    const metrics: ModelMetricRow[] = [
+  // What a trainer that died between the 1-day and 7-day passes leaves behind: the API
+  // serves each window its own latest day, so the chart renders but is a day short.
+  function behindByADay(): ModelMetricRow[] {
+    return [
       ...buildRows(),
       {
         day: '2026-08-17',
@@ -70,8 +70,30 @@ describe('BrierChart', () => {
         n: 100,
       },
     ];
-    render(<BrierChart metrics={metrics} target="bike" slice="all" />);
-    expect(screen.getByText('· scored through 16 Aug')).toBeInTheDocument();
+  }
+
+  it('says which day it covers when the 7-day window is behind the newest metrics day', () => {
+    render(<BrierChart metrics={behindByADay()} target="bike" slice="all" />);
+    // `day` is the window's exclusive upper bound, so rows stamped 16 Aug cover through 15 Aug.
+    expect(screen.getByText('· scored through 15 Aug')).toBeInTheDocument();
+  });
+
+  it('carries the same note in the table twin caption (the table\'s accessible name)', async () => {
+    const user = userEvent.setup();
+    render(<BrierChart metrics={behindByADay()} target="bike" slice="all" />);
+    await user.click(screen.getByRole('button', { name: 'Table' }));
+    expect(screen.getByRole('table')).toHaveAccessibleName(
+      'Brier score by horizon (lower is better) · last 7 days · scored through 15 Aug',
+    );
+  });
+
+  it('leaves the table caption bare when the window is current', async () => {
+    const user = userEvent.setup();
+    render(<BrierChart metrics={buildRows()} target="bike" slice="all" />);
+    await user.click(screen.getByRole('button', { name: 'Table' }));
+    expect(screen.getByRole('table')).toHaveAccessibleName(
+      'Brier score by horizon (lower is better) · last 7 days',
+    );
   });
 
   it('says nothing about the day when every window is scored for the same day', () => {

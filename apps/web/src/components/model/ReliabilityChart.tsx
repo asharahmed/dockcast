@@ -17,8 +17,8 @@ import { ChartLegend } from '../ui/ChartLegend.js';
 import { ChartTable, useChartTableToggle } from '../ui/ChartTable.js';
 import { Button } from '../ui/Button.js';
 import { EmptyState } from '../ui/EmptyState.js';
+import { ChartHeading, chartCaption } from './ChartHeading.js';
 import { COPY } from '../../lib/constants.js';
-import { fmtDayShort } from '../../lib/time.js';
 import {
   filterMetrics,
   staleDay,
@@ -91,14 +91,7 @@ export function ReliabilityChart({ metrics, target, slice }: ReliabilityChartPro
   return (
     <div className="dc-chart flex flex-col gap-2">
       <div className="flex items-center justify-between">
-        <h3 className="text-[length:var(--fs-md)] font-medium">
-          {COPY.model.charts.reliabilityTitle}
-          {asOf !== null && (
-            <span className="ml-1 font-normal text-[length:var(--fs-sm)] text-ink-2">
-              · {COPY.model.charts.asOf(fmtDayShort(asOf))}
-            </span>
-          )}
-        </h3>
+        <ChartHeading title={COPY.model.charts.reliabilityTitle} asOf={asOf} />
         <Button type="button" variant="ghost" onClick={toggleTable}>
           {showTable ? COPY.station.chart.chartToggle : COPY.station.chart.table}
         </Button>
@@ -114,7 +107,7 @@ export function ReliabilityChart({ metrics, target, slice }: ReliabilityChartPro
 
       {showTable ? (
         <ChartTable
-          caption={COPY.model.charts.reliabilityTitle}
+          caption={chartCaption(COPY.model.charts.reliabilityTitle, asOf)}
           columns={[
             { key: 'tier', label: 'Tier' },
             { key: 'mean_pred', label: 'Predicted', format: (v) => `${Math.round((v as number) * 100)}%` },
