@@ -1,0 +1,22 @@
+#cloud-config
+# DockCast on a fresh Ubuntu 24.04 server with >= 8 GB RAM (docs/infra.md §15).
+#
+# Paste this as the server's "user data" / "cloud-init" when creating it (Hetzner, DigitalOcean,
+# Vultr, ...), after editing the three values under write_files. Point an A record for DOMAIN
+# at the server (DNS-only). About ten minutes after boot https://DOMAIN answers; forecasts follow
+# once the trip-history bootstrap finishes, roughly twenty minutes later. Progress is in
+# /var/log/dockcast-install.log and /opt/dockcast/bootstrap.log.
+package_update: true
+package_upgrade: true
+packages: [git, curl, ufw]
+write_files:
+  - path: /root/dockcast-install.env
+    permissions: "0600"
+    content: |
+      DOMAIN=dockcast.example.com
+      CLOUDFLARE_API_TOKEN=replace-me
+      VAPID_SUBJECT=mailto:you@example.com
+runcmd:
+  - fallocate -l 2G /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile && echo '/swapfile none swap sw 0 0' >> /etc/fstab
+  - ufw allow OpenSSH && ufw allow 80/tcp && ufw allow 443/tcp && ufw allow 443/udp && ufw --force enable
+  - set -a; . /root/dockcast-install.env; set +a; curl -fsSL https://raw.githubusercontent.com/asharahmed/dockcast/main/infra/scripts/install.sh | bash > /var/log/dockcast-install.log 2>&1

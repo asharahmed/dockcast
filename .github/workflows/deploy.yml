@@ -15,6 +15,7 @@ jobs:
           - { name: api,       file: apps/api/Dockerfile }
           - { name: collector, file: apps/collector/Dockerfile }
           - { name: worker,    file: ml/Dockerfile }
+          - { name: caddy,     file: infra/caddy/Dockerfile }
     steps:
       - uses: actions/checkout@v4
         with: { ref: "${{ github.event.workflow_run.head_sha }}" }
@@ -42,7 +43,8 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
             set -e
-            cd /opt/dockcast
+            cd /opt/dockcast && git pull --ff-only
+            cd infra
             docker compose pull
             docker compose up -d --remove-orphans
             docker image prune -f

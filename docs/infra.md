@@ -630,3 +630,31 @@ record is a CNAME to the tunnel, which resolves to Cloudflare's own addresses.
 Optional edge settings under SSL/TLS: turn on **Always Use HTTPS** and **HSTS** (the api only
 emits HSTS when it sees https, which it now always does). The SSL mode is irrelevant for
 tunnelled hostnames. Outbound requirements on the host: TCP/UDP 7844 or TCP 443 to Cloudflare.
+
+## 15. One-shot install on a VPS (the easy path)
+
+The whole of §7 collapses to one script. On any fresh Ubuntu 24.04 host with 8 GB RAM
+(Hetzner CX33-class, about €8/month), as root:
+
+```sh
+DOMAIN=dockcast.example.com CLOUDFLARE_API_TOKEN=... VAPID_SUBJECT=mailto:you@example.com \
+  bash -c "$(curl -fsSL https://raw.githubusercontent.com/asharahmed/dockcast/main/infra/scripts/install.sh)"
+```
+
+Or skip logging in entirely: paste `infra/cloud-init.yaml` (with its three values edited) as the
+server's user data when creating it. Either way the host ends up with the repo cloned at
+`/opt/dockcast`, a generated `infra/.env` (random Postgres password and session secret, fresh
+VAPID keys, `GHCR_OWNER=asharahmed` so every image, caddy included, is pulled rather than built),
+the stack running, and the Toronto bootstrap running in the background with its log at
+`/opt/dockcast/bootstrap.log`. Point an A record for `DOMAIN` at the host, DNS-only (grey cloud):
+the Caddyfile issues the certificate through Cloudflare DNS-01, so no inbound port is needed for
+issuance, and a proxied record would put Cloudflare's addresses in front of the api's single
+trusted proxy hop. Re-running the script is safe; it fast-forwards the checkout and keeps `.env`.
+
+Afterwards, `infra/scripts/deploy.sh` on the host (git pull, pull images, restart) is the manual
+update, and adding `VPS_HOST`, `VPS_USER` and `VPS_SSH_KEY` as repository secrets makes
+`deploy.yml` do the same on every green push to `main`. The trainer starts at 4 GB and self-heals
+up to 6 GB on this size of host (`TRAIN_MEM_*` in the generated `.env`).
+
+Untested on a live VPS as of 2026-10-12: the script's env generation and idempotence were
+exercised in a dry run; the Docker install, pull, `up --wait` and bootstrap steps were not.

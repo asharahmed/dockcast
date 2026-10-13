@@ -195,7 +195,14 @@ CI runs the same sequence, plus a full build, against a TimescaleDB service on e
 
 ## Deploy
 
-One host, Docker Compose, Caddy for TLS. GitHub Actions builds the `api`, `collector` and `worker` images and pushes them to GHCR on every green `main` build, then rolls the host over SSH once the VPS secrets are configured. For a host behind NAT, the optional `tunnel` profile adds a Cloudflare Tunnel connector, so the site is public without opening a port or putting the home IP in DNS. The runbook, secrets list and backup/restore scripts are in [`docs/infra.md`](docs/infra.md) (§1, §6, §7, §8, §14).
+One host, Docker Compose, Caddy for TLS, prebuilt images on GHCR. On a fresh Ubuntu 24.04 server with 8 GB RAM, as root:
+
+```sh
+DOMAIN=dockcast.example.com CLOUDFLARE_API_TOKEN=... VAPID_SUBJECT=mailto:you@example.com \
+  bash -c "$(curl -fsSL https://raw.githubusercontent.com/asharahmed/dockcast/main/infra/scripts/install.sh)"
+```
+
+That installs Docker, clones the repo to `/opt/dockcast`, generates the secrets, pulls the images, starts the stack and runs the trip-history bootstrap. [`infra/cloud-init.yaml`](infra/cloud-init.yaml) does the same as server user data, so no login is needed. Point an A record at the host and the site is up; certificates come through Cloudflare DNS-01. GitHub Actions rebuilds the images on every green `main` build and, once the three `VPS_*` secrets exist, rolls the host over SSH. For a host behind NAT, the optional `tunnel` profile adds a Cloudflare Tunnel connector instead. Runbooks, secrets list and backup/restore are in [`docs/infra.md`](docs/infra.md) (§6, §8, §14, §15).
 
 ## Data sources and licences
 
