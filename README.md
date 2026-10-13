@@ -105,6 +105,7 @@ docs/           Specs and runbooks (see the table at the end)
 
 ```sh
 pnpm install
+pnpm build:libs                 # @dockcast/shared and @dockcast/db are consumed from their dist
 docker compose -f infra/docker-compose.dev.yml up -d db db-test
 cp .env.example .env
 ```
@@ -184,13 +185,13 @@ DockCast is city-generic. Registering a city from its GBFS feed gives it a live 
 
 ```sh
 export DATABASE_URL_TEST=postgres://postgres:dockcast@localhost:5433/dockcast_test   # the dev compose db-test service
-pnpm -r lint && pnpm -r typecheck && pnpm -r test
+pnpm build:libs && pnpm -r lint && pnpm -r typecheck && pnpm -r test
 cd ml && uv run ruff check . && uv run pytest -q
 ```
 
-The `dev` extra brings in ruff and pytest. Database-backed tests skip themselves when `DATABASE_URL_TEST` is unset. The `db-test` container has no volume, so every run starts from a clean server.
+The `dev` extra brings in ruff and pytest. The api test suite refuses to run without `DATABASE_URL_TEST`; the other database-backed tests skip themselves. The `db-test` container has no volume, so every run starts from a clean server.
 
-CI runs lint, typecheck, build and both test suites against a TimescaleDB service on every push and pull request. Python tests marked `slow` are excluded by default.
+CI runs the same sequence, plus a full build, against a TimescaleDB service on every push and pull request. Python tests marked `slow` are excluded by default.
 
 ## Deploy
 

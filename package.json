@@ -14,6 +14,7 @@
   },
   "scripts": {
     "dev": "pnpm -r --parallel --filter ./apps/* dev",
+    "build:libs": "pnpm --filter \"./packages/*\" build",
     "build": "pnpm -r build",
     "lint": "pnpm -r lint",
     "typecheck": "pnpm -r typecheck",
