@@ -207,13 +207,13 @@ export function StationChart({ history, forecasts, current, capacity, cityTz, no
                 <ReferenceLine
                   y={capacity}
                   stroke="var(--ref)"
-                  label={{ value: COPY.station.chart.capacityLabel, position: 'right', fill: 'var(--ink-3)', fontSize: 11 }}
+                  label={{ value: COPY.station.chart.capacityLabel, position: 'insideTopLeft', fill: 'var(--ink-3)', fontSize: 11 }}
                 />
               )}
               <ReferenceLine
                 x={now.getTime()}
                 stroke="var(--rule-strong)"
-                label={{ value: COPY.station.chart.nowLabel, position: 'top', fill: 'var(--ink-3)', fontSize: 11 }}
+                label={{ value: COPY.station.chart.nowLabel, position: 'insideTopRight', fill: 'var(--ink-3)', fontSize: 11 }}
               />
             </ComposedChart>
           </ResponsiveContainer>

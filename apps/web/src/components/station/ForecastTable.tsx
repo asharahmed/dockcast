@@ -1,13 +1,9 @@
 /**
- * ui-spec.md §4.2 `ForecastTable`.
- *
- * SPEC-GAP / deviation: §6 asks mobile tables to collapse into stacked
- * definition-list blocks; this ships as a horizontally-scrollable `<table>`
- * instead (still fully readable, keyboard/AT-navigable) — the bespoke
- * stacked-row CSS is deferred to a follow-up pass so WP-9 isn't blocked on
- * it. Flagged in the WP-9 report rather than guessed silently.
+ * ui-spec.md §4.2 `ForecastTable`. Below 768 px (§6) the six-column table becomes one
+ * block per horizon: when, the two probabilities, and the expected count with its range.
  */
 import { Link } from 'react-router';
+import { useMediaQuery } from '../../hooks/useMediaQuery.js';
 import { ProbBadge } from '../forecast/ProbBadge.js';
 import { COPY } from '../../lib/constants.js';
 import { fmtLocalTime, horizonDurationLabel } from '../../lib/time.js';
@@ -51,9 +47,57 @@ function servingTierLabel(forecasts: StationForecastRow[]): string {
   return tierLabelText(withTier?.tier ?? 'none');
 }
 
+function rangeText(row: StationForecastRow): string | null {
+  return row.q10 === null || row.q90 === null ? null : `${Math.round(row.q10)}–${Math.round(row.q90)}`;
+}
+
+function ForecastCards({ forecasts, cityTz }: ForecastTableProps) {
+  const copy = COPY.station.forecastCard;
+  return (
+    <ul aria-label={COPY.station.forecastCaption} className="flex flex-col divide-y divide-rule border-y border-rule">
+      {forecasts.map((row) => {
+        const unavailable = row.p_bike === null && row.p_dock === null;
+        const note = reasonText(row.reason);
+        return (
+          <li
+            key={row.horizon}
+            data-testid="forecast-card"
+            className={`grid grid-cols-[1fr_auto_auto] items-center gap-x-5 gap-y-1 py-3 ${unavailable ? 'text-ink-3' : ''}`}
+          >
+            <div className="flex flex-col">
+              <span className="font-medium tabular-nums">{horizonDurationLabel(row.horizon)}</span>
+              <span className="text-[length:var(--fs-xs)] text-ink-3 tabular-nums">
+                {fmtLocalTime(new Date(row.valid_at), cityTz)}
+              </span>
+            </div>
+            <div className="flex flex-col items-start gap-0.5">
+              <span className="text-[length:var(--fs-xs)] text-ink-3">{copy.bike}</span>
+              <ProbBadge p={row.p_bike} />
+            </div>
+            <div className="flex flex-col items-start gap-0.5">
+              <span className="text-[length:var(--fs-xs)] text-ink-3">{copy.dock}</span>
+              <ProbBadge p={row.p_dock} />
+            </div>
+            {(row.exp_bikes !== null || note) && (
+              <p className="col-span-3 text-[length:var(--fs-xs)] text-ink-2">
+                {row.exp_bikes !== null && copy.expected(Math.round(row.exp_bikes), rangeText(row))}
+                {note && <span className="ml-2 text-ink-3">{note}</span>}
+              </p>
+            )}
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
 export function ForecastTable({ forecasts, cityTz }: ForecastTableProps) {
+  const isPhone = useMediaQuery('(max-width: 767.98px)');
   return (
     <div className="flex flex-col gap-2">
+      {isPhone ? (
+        <ForecastCards forecasts={forecasts} cityTz={cityTz} />
+      ) : (
       <div className="overflow-x-auto">
         <table className="w-full text-left text-[length:var(--fs-sm)]">
           <caption className="visually-hidden">{COPY.station.forecastCaption}</caption>
@@ -100,6 +144,7 @@ export function ForecastTable({ forecasts, cityTz }: ForecastTableProps) {
           </tbody>
         </table>
       </div>
+      )}
       <p className="text-[length:var(--fs-xs)] text-ink-3">
         {COPY.station.modelLine(servingTierLabel(forecasts))}{' '}
         <Link to="/model" className="text-signal underline underline-offset-4">

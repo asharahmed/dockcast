@@ -96,8 +96,8 @@ export function StationSearch({
       >
         {label ?? COPY.map.searchLabel}
       </label>
-      <div className="flex items-center gap-2 rounded-[var(--r-1)] border border-rule-strong bg-surface px-3 py-2">
-        <Icon name={icon} size={18} className="text-ink-3" />
+      <div className="flex min-h-11 items-stretch gap-2 rounded-[var(--r-1)] border border-rule-strong bg-surface px-3">
+        <Icon name={icon} size={18} className="shrink-0 self-center text-ink-3" />
         <input
           id={inputId}
           type="text"
@@ -115,7 +115,7 @@ export function StationSearch({
             setActiveIndex(-1);
           }}
           onKeyDown={onKeyDown}
-          className="w-full bg-transparent text-[length:var(--fs-sm)] text-ink outline-none placeholder:text-ink-3"
+          className="w-full bg-transparent py-2 text-[length:var(--fs-sm)] text-ink outline-none placeholder:text-ink-3"
         />
       </div>
       {error && (

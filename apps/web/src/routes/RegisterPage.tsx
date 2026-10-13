@@ -71,7 +71,7 @@ export default function RegisterPage() {
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full rounded-[var(--r-1)] border border-rule-strong bg-surface px-3 py-2 text-ink"
+            className="min-h-11 w-full rounded-[var(--r-1)] border border-rule-strong bg-surface px-3 py-2 text-ink"
           />
         </Field>
         <Field label="Password" hint={COPY.auth_pages.passwordHint}>
@@ -82,7 +82,7 @@ export default function RegisterPage() {
             required
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full rounded-[var(--r-1)] border border-rule-strong bg-surface px-3 py-2 text-ink"
+            className="min-h-11 w-full rounded-[var(--r-1)] border border-rule-strong bg-surface px-3 py-2 text-ink"
           />
         </Field>
         <Button type="submit" disabled={register.isPending}>
@@ -92,7 +92,7 @@ export default function RegisterPage() {
 
       <OAuthButtons next={nextPath} />
 
-      <Link to="/login" className="text-[length:var(--fs-sm)] text-signal underline underline-offset-4">
+      <Link to="/login" className="inline-flex min-h-11 items-center text-[length:var(--fs-sm)] text-signal underline underline-offset-4">
         {COPY.auth_pages.toSignIn}
       </Link>
     </div>

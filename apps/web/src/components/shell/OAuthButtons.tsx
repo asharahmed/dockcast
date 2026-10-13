@@ -42,7 +42,7 @@ function AppleMark() {
 }
 
 const BUTTON_CLASS =
-  'flex items-center justify-center gap-3 rounded-[var(--r-1)] border border-rule-strong bg-surface px-3 py-2 font-medium text-ink hover:bg-surface-2';
+  'flex items-center justify-center gap-3 rounded-[var(--r-1)] border border-rule-strong bg-surface px-3 py-2 font-medium text-ink hover:bg-surface-2 min-h-11';
 
 export function OAuthButtons({ next }: { next: string }) {
   const { data: providers } = useAuthProviders();

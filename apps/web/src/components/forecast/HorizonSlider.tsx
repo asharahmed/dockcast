@@ -58,7 +58,7 @@ export function HorizonSlider({ value, onChange, disabled = false, cityTz, now }
       </span>
       <p className="text-[length:var(--fs-sm)] text-ink-3">{`= ${absolute}`}</p>
 
-      <div className="relative flex h-5 items-center">
+      <div className="relative flex h-11 items-center">
         <div className="pointer-events-none absolute inset-x-0 h-1 rounded-[var(--r-pill)] bg-rule-strong" />
         <div
           className="pointer-events-none absolute h-1 rounded-[var(--r-pill)] bg-signal"
@@ -75,7 +75,7 @@ export function HorizonSlider({ value, onChange, disabled = false, cityTz, now }
           onKeyDown={onKeyDown}
           aria-label="Forecast horizon"
           aria-valuetext={readout}
-          className="relative z-10 w-full appearance-none bg-transparent [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-signal [&::-moz-range-thumb]:bg-surface [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-signal [&::-webkit-slider-thumb]:bg-surface"
+          className="relative z-10 h-11 w-full appearance-none bg-transparent [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-signal [&::-moz-range-thumb]:bg-surface [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-signal [&::-webkit-slider-thumb]:bg-surface"
         />
       </div>
 

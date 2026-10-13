@@ -175,3 +175,29 @@
   background: color-mix(in oklab, var(--st-critical) 14%, var(--surface));
   border: 1px solid var(--st-critical);
 }
+
+/* Shell geometry shared by the header, tab bar, map page and mobile sheet (ui-spec.md §6).
+   The safe-area insets come from `viewport-fit=cover` in index.html: on an iPhone they
+   keep content clear of the notch/status bar and the home indicator. */
+:root {
+  --header-h: calc(3.5rem + env(safe-area-inset-top, 0px));
+  --tabbar-h: calc(3.5rem + env(safe-area-inset-bottom, 0px));
+}
+@media (min-width: 768px) {
+  :root {
+    --tabbar-h: 0px;
+  }
+}
+
+/* The map fills exactly what is left between the header and the tab bar. */
+.dc-map-viewport {
+  height: calc(100dvh - var(--header-h) - var(--tabbar-h));
+}
+
+/* MapLibre's zoom/locate buttons are 29 px; ui-spec.md §6 wants ≥ 44 px touch targets. */
+@media (pointer: coarse) {
+  .maplibregl-ctrl.maplibregl-ctrl-group button {
+    width: 44px;
+    height: 44px;
+  }
+}

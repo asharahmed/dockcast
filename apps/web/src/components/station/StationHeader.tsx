@@ -16,7 +16,7 @@ export function StationHeader({ cityName, name, stationId, capacity, mapHref }: 
   return (
     <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
       <div className="flex flex-col gap-1">
-        <Link to="/" className="text-[length:var(--fs-sm)] text-ink-2 underline underline-offset-4">
+        <Link to="/" className="inline-flex min-h-11 items-center self-start text-[length:var(--fs-sm)] text-ink-2 underline underline-offset-4">
           {cityName}
         </Link>
         <h1 className="font-[var(--font-display)] text-[length:var(--fs-2xl)] font-semibold">
@@ -28,7 +28,7 @@ export function StationHeader({ cityName, name, stationId, capacity, mapHref }: 
       </div>
       <Link
         to={mapHref}
-        className="text-[length:var(--fs-sm)] font-medium text-signal underline underline-offset-4"
+        className="inline-flex min-h-11 items-center self-start text-[length:var(--fs-sm)] font-medium text-signal underline underline-offset-4"
       >
         {COPY.station.showOnMap}
       </Link>

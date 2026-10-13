@@ -37,7 +37,7 @@ export function ShareButton({ url }: { url: string }) {
           value={url}
           aria-label="Trip link"
           onFocus={(event) => event.currentTarget.select()}
-          className="w-full rounded-[var(--r-1)] border border-rule-strong bg-surface px-3 py-2 text-ink"
+          className="min-h-11 w-full rounded-[var(--r-1)] border border-rule-strong bg-surface px-3 py-2 text-ink"
         />
       )}
     </div>

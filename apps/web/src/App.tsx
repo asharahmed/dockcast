@@ -90,7 +90,7 @@ export function App() {
         <Header />
         <OfflineBanner />
         <RouteAnnouncer />
-        <main id="content" className="flex-1 pb-14 md:pb-0">
+        <main id="content" className="flex-1 pb-[var(--tabbar-h)]">
           <Suspense
             fallback={
               <div className="flex flex-col gap-4 px-[var(--gutter)] py-[var(--sp-8)]">

@@ -244,7 +244,7 @@ export function TripPlanner({ stations, mapStations, cityTz, now, emptyHint }: T
                     rideValue: event.target.value === '' ? null : Number(event.target.value),
                   }))
                 }
-                className="w-24 rounded-[var(--r-1)] border border-rule-strong bg-surface px-3 py-2 text-ink"
+                className="min-h-11 w-24 rounded-[var(--r-1)] border border-rule-strong bg-surface px-3 py-2 text-ink"
               />
               {!draft.rideAuto && (
                 <button

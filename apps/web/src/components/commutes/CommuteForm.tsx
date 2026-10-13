@@ -146,7 +146,7 @@ export function CommuteForm({
           onChange={(event) => setName(event.target.value)}
           placeholder={COPY.commutes.form.nameDefault}
           maxLength={60}
-          className="w-full rounded-[var(--r-1)] border border-rule-strong bg-surface px-3 py-2 text-ink"
+          className="min-h-11 w-full rounded-[var(--r-1)] border border-rule-strong bg-surface px-3 py-2 text-ink"
         />
       </Field>
 
@@ -178,7 +178,7 @@ export function CommuteForm({
           required
           value={departLocalTime}
           onChange={(event) => setDepartLocalTime(event.target.value)}
-          className="w-full rounded-[var(--r-1)] border border-rule-strong bg-surface px-3 py-2 text-ink"
+          className="min-h-11 w-full rounded-[var(--r-1)] border border-rule-strong bg-surface px-3 py-2 text-ink"
         />
       </Field>
 
@@ -225,7 +225,7 @@ export function CommuteForm({
               setRideAuto(false);
               setRideValue(event.target.value === '' ? null : Number(event.target.value));
             }}
-            className="w-24 rounded-[var(--r-1)] border border-rule-strong bg-surface px-3 py-2 text-ink"
+            className="min-h-11 w-24 rounded-[var(--r-1)] border border-rule-strong bg-surface px-3 py-2 text-ink"
           />
           {!rideAuto && (
             <button

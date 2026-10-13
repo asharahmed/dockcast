@@ -55,6 +55,8 @@ export const COPY = {
       docks: (when: string) => `Chance of an empty dock ${when}`,
     },
     legendNoForecast: 'No forecast',
+    legendShow: 'Show legend',
+    legendHide: 'Hide legend',
     legendLive: 'Live availability',
     legendLiveHas: (target: 'bike' | 'dock') => (target === 'bike' ? 'Has bikes' : 'Has docks'),
     legendLiveEmpty: 'Empty',
@@ -97,6 +99,13 @@ export const COPY = {
     notReportingLastSeen: (rel: string) => `Not reporting · last seen ${rel}`,
     noCurrentData: "We haven't seen this station report yet.",
     forecastCaption: 'Forecast by horizon',
+    // Phone layout of the forecast table (ui-spec.md §6: tables stack below 768 px).
+    forecastCard: {
+      bike: 'Bike',
+      dock: 'Dock',
+      expected: (n: number, range: string | null) =>
+        range ? `About ${n} bikes expected (range ${range})` : `About ${n} bikes expected`,
+    },
     modelLine: (label: string) => `Model: ${label}`,
     howForecastsWork: 'How forecasts work →',
     tierLabel: {

@@ -65,7 +65,7 @@ export function SegmentedControl<V extends string>({
             tabIndex={selected ? 0 : -1}
             onClick={() => onChange(option.value)}
             onKeyDown={(e) => onKeyDown(e, index)}
-            className={`inline-flex items-center gap-1.5 rounded-[var(--r-1)] px-3 py-1.5 text-[length:var(--fs-sm)] font-medium transition-colors duration-[var(--dur-state)] min-h-9 ${
+            className={`inline-flex items-center gap-1.5 rounded-[var(--r-1)] px-3 py-1.5 text-[length:var(--fs-sm)] font-medium transition-colors duration-[var(--dur-state)] min-h-11 md:min-h-9 ${
               selected ? 'bg-signal-wash text-signal' : 'text-ink-2 hover:bg-surface-2'
             }`}
           >

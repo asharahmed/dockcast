@@ -22,7 +22,7 @@ export function Select({ value, onChange, options, id, ...rest }: SelectProps) {
       id={id}
       value={value}
       onChange={(event) => onChange(event.target.value)}
-      className="w-full rounded-[var(--r-1)] border border-rule-strong bg-surface px-3 py-2 text-ink"
+      className="min-h-11 w-full rounded-[var(--r-1)] border border-rule-strong bg-surface px-3 py-2 text-ink"
       {...rest}
     >
       {options.map((opt) => (

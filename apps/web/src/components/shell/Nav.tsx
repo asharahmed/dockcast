@@ -21,7 +21,7 @@ export function Nav() {
   return (
     <nav
       aria-label="Primary"
-      className="fixed inset-x-0 bottom-0 z-20 flex h-14 items-stretch justify-around border-t border-rule bg-surface md:hidden"
+      className="fixed inset-x-0 bottom-0 z-20 flex h-[var(--tabbar-h)] items-stretch justify-around border-t border-rule bg-surface pb-[env(safe-area-inset-bottom)] md:hidden"
     >
       {TAB_ITEMS.map((item) => (
         <NavLink

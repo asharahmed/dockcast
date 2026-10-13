@@ -23,8 +23,8 @@ export function Header() {
   const cities = citiesData?.cities ?? [];
 
   return (
-    <header className="flex h-14 items-center justify-between border-b border-rule bg-surface px-[var(--gutter)]">
-      <Link to="/" className="flex items-center gap-2 font-[var(--font-display)] font-semibold">
+    <header className="flex h-[var(--header-h)] items-center justify-between border-b border-rule bg-surface px-[var(--gutter)] pt-[env(safe-area-inset-top)]">
+      <Link to="/" className="flex min-h-11 items-center gap-2 font-[var(--font-display)] font-semibold">
         <img src="/favicon.svg" alt="" width={24} height={24} />
         <span>{COPY.shell.wordmark}</span>
       </Link>
@@ -81,13 +81,13 @@ export function Header() {
             <button
               type="button"
               onClick={() => logout.mutate()}
-              className="text-[length:var(--fs-sm)] text-signal underline underline-offset-4"
+              className="inline-flex min-h-11 items-center text-[length:var(--fs-sm)] text-signal underline underline-offset-4"
             >
               {COPY.shell.signOut}
             </button>
           </div>
         ) : (
-          <Link to="/login" className="text-[length:var(--fs-sm)] text-signal underline underline-offset-4">
+          <Link to="/login" className="inline-flex min-h-11 items-center px-1 text-[length:var(--fs-sm)] text-signal underline underline-offset-4">
             {COPY.shell.signIn}
           </Link>
         )}

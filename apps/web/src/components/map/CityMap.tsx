@@ -65,11 +65,15 @@ export function CityMap({
       minZoom: 10,
       attributionControl: false,
     });
+    // Phones: the bottom sheet covers the lower edge of the map, so zoom/locate move
+    // to the top-right corner. The legend chip takes the top-left (MapPage).
+    const narrow = window.matchMedia('(max-width: 767.98px)').matches;
+    const controlCorner = narrow ? 'top-right' : 'bottom-right';
     map.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-left');
-    map.addControl(new maplibregl.NavigationControl(), 'bottom-right');
+    map.addControl(new maplibregl.NavigationControl(), controlCorner);
     map.addControl(
       new maplibregl.GeolocateControl({ positionOptions: { enableHighAccuracy: true } }),
-      'bottom-right',
+      controlCorner,
     );
     map.on('load', () => {
       map.getCanvas().setAttribute('role', 'img');

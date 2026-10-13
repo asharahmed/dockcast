@@ -380,6 +380,12 @@ into a different DockCast account."
 | `≥ 1024` | docked panel 360 px | grids as specified; max-width 1200 |
 Container queries (`@container`) size `TripResult` internals (hero percent shrinks below 420 px container). Touch targets ≥ 44 px on all interactive elements; the map's hover tooltip is tap-to-select on touch.
 
+**Phone details** (decided 2026-10-13, measured at 390 × 664):
+- Shell geometry comes from two CSS variables in `styles/base.css`: `--header-h` and `--tabbar-h` (0 from 768 px up), both including the iOS safe-area insets (`viewport-fit=cover`). The map page is exactly the space between them (`.dc-map-viewport`), so it never scrolls.
+- Map: the bottom sheet sits above the tab bar. Its handle is a full-width 44 px strip: swipe up/down moves one snap point (peek 104 px → half → full, which keeps the header visible), a tap cycles, keyboard activation cycles. The legend is a one-line chip (five-dot ramp + title) at the top-left that expands to the full legend; zoom/locate move to the top-right. MapLibre's control buttons are 44 px on coarse pointers.
+- `ForecastTable` and `VersionsTable` render as stacked blocks below 768 px (one per horizon / per version; a version block is a button that expands the gate detail). Nearest-station rows keep counts and distance in a right-hand column that never wraps.
+- Every standalone link, input and segmented option is ≥ 44 px tall on phones (`min-h-11`); segmented options drop to 36 px from 768 px up.
+
 ---------------------------------------------------------------------------
 
 ## 7. API client (`api/client.ts`)

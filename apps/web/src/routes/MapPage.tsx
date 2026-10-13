@@ -79,7 +79,7 @@ export default function MapPage() {
 
   if (citiesLoading && cities.length === 0) {
     return (
-      <div className="flex h-[calc(100dvh-56px)] items-center justify-center">
+      <div className="flex dc-map-viewport items-center justify-center">
         <Skeleton width={280} height={32} />
       </div>
     );
@@ -87,7 +87,7 @@ export default function MapPage() {
 
   if (!city) {
     return (
-      <div className="flex h-[calc(100dvh-56px)] items-center justify-center px-[var(--gutter)]">
+      <div className="flex dc-map-viewport items-center justify-center px-[var(--gutter)]">
         <EmptyState icon="map" title="No cities configured yet." />
       </div>
     );
@@ -170,7 +170,7 @@ export default function MapPage() {
   );
 
   return (
-    <div className="relative h-[calc(100dvh-56px)] w-full overflow-hidden">
+    <div className="relative dc-map-viewport w-full overflow-hidden">
       {listView ? (
         <div className="h-full overflow-y-auto p-[var(--gutter)]">
           <StationListView
@@ -237,9 +237,11 @@ export default function MapPage() {
             {controlPanel}
           </Sheet>
           {!listView && (
-            <div className="pointer-events-none absolute bottom-[calc(96px+var(--sp-3))] right-[var(--sp-3)]">
-              <div className="pointer-events-auto w-[240px]">
+            // Top-left on phones: zoom/locate are top-right (CityMap) and the sheet owns the bottom.
+            <div className="pointer-events-none absolute left-[var(--sp-3)] top-[var(--sp-3)] max-w-[calc(100%-80px)]">
+              <div className="pointer-events-auto w-max max-w-[260px]">
                 <MapLegend
+                  collapsible
                   target={target}
                   horizonIndex={horizonIndex}
                   now={now}

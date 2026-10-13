@@ -1,7 +1,9 @@
 /**
- * Model versions table with gate drill-down. ui-spec.md §4.5 `VersionsTable`.
+ * Model versions table with gate drill-down. ui-spec.md §4.5 `VersionsTable`. Below
+ * 768 px (§6) each version is a tappable block instead of a seven-column row.
  */
 import { Fragment, useState } from 'react';
+import { useMediaQuery } from '../../hooks/useMediaQuery.js';
 import { Chip } from '../ui/Chip.js';
 import { EmptyState } from '../ui/EmptyState.js';
 import { useModelVersion } from '../../api/queries.js';
@@ -87,11 +89,75 @@ export interface VersionsTableProps {
   now: Date;
 }
 
+function valBrier(v: ModelVersionSummary): string {
+  return v.metrics_val?.brier
+    ? `${v.metrics_val.brier.bike.toFixed(3)} / ${v.metrics_val.brier.dock.toFixed(3)}`
+    : '—';
+}
+
+function GateChip({ v }: { v: ModelVersionSummary }) {
+  if (!v.gate) return <>—</>;
+  return (
+    <Chip tone={v.gate.passed ? 'good' : 'critical'}>
+      {v.gate.passed ? COPY.model.versions.gatePassed : COPY.model.versions.gateFailed}
+    </Chip>
+  );
+}
+
+function VersionCards({ versions, now }: VersionsTableProps) {
+  const [expandedId, setExpandedId] = useState<number | null>(null);
+  const cols = COPY.model.versions.columns;
+  return (
+    <ul aria-label={COPY.model.versions.heading} className="flex flex-col divide-y divide-rule border-y border-rule">
+      {versions.slice(0, 30).map((v) => {
+        const expanded = expandedId === v.id;
+        return (
+          <li key={v.id}>
+            <button
+              type="button"
+              aria-expanded={expanded}
+              onClick={() => setExpandedId(expanded ? null : v.id)}
+              className="flex w-full flex-col gap-1.5 py-3 text-left text-[length:var(--fs-sm)]"
+            >
+              <span className="flex items-center justify-between gap-3">
+                <span className="font-medium tabular-nums">
+                  #{v.id} · {v.tier} · {v.trained_for_date}
+                </span>
+                <StatusChip status={v.status} />
+              </span>
+              <span className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[length:var(--fs-xs)] text-ink-2">
+                <span className="tabular-nums">
+                  {cols.valBrier}: {valBrier(v)}
+                </span>
+                <span className="inline-flex items-center gap-1">
+                  {cols.gate}: <GateChip v={v} />
+                </span>
+                <span className="text-ink-3">{fmtRelative(new Date(v.created_at), now)}</span>
+              </span>
+            </button>
+            {expanded && <VersionDetail id={v.id} />}
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
 export function VersionsTable({ versions, now }: VersionsTableProps) {
   const [expandedId, setExpandedId] = useState<number | null>(null);
+  const isPhone = useMediaQuery('(max-width: 767.98px)');
 
   if (versions.length === 0) {
     return <EmptyState icon="clock" title={COPY.model.versions.empty} />;
+  }
+
+  if (isPhone) {
+    return (
+      <div className="flex flex-col gap-3">
+        <h2 className="text-[length:var(--fs-lg)]">{COPY.model.versions.heading}</h2>
+        <VersionCards versions={versions} now={now} />
+      </div>
+    );
   }
 
   return (
