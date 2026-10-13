@@ -41,6 +41,7 @@
   --p4: #104281;
   --p-none: #8a8880;
   --map-ring: #fdfcfa;
+  --map-ctrl-icon-filter: none;
 
   /* Chart series (fixed slot assignment — never re-ordered) */
   --s1: #2a78d6;
@@ -114,6 +115,7 @@
     --p3: #256abf;
     --p4: #184f95;
     --map-ring: #141412;
+    --map-ctrl-icon-filter: invert(0.92);
 
     --s1: #3987e5;
     --s2: #d95926;
@@ -147,6 +149,7 @@
   --p3: #256abf;
   --p4: #184f95;
   --map-ring: #141412;
+  --map-ctrl-icon-filter: invert(0.92);
 
   --s1: #3987e5;
   --s2: #d95926;

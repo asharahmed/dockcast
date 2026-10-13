@@ -209,6 +209,25 @@
   }
 }
 
+/* MapLibre's controls and attribution follow the theme (its stock CSS is light-only and
+   loads after ours, hence the .maplibregl-map scope for specificity). */
+.maplibregl-map .maplibregl-ctrl.maplibregl-ctrl-group,
+.maplibregl-map .maplibregl-ctrl.maplibregl-ctrl-attrib,
+.maplibregl-map .maplibregl-ctrl-attrib.maplibregl-compact {
+  background: var(--surface);
+  color: var(--ink-2);
+}
+.maplibregl-map .maplibregl-ctrl.maplibregl-ctrl-group button + button {
+  border-top-color: var(--rule);
+}
+.maplibregl-map .maplibregl-ctrl-group .maplibregl-ctrl-icon,
+.maplibregl-map .maplibregl-ctrl-attrib-button {
+  filter: var(--map-ctrl-icon-filter);
+}
+.maplibregl-map .maplibregl-ctrl-attrib a {
+  color: var(--ink-2);
+}
+
 /* MapLibre's zoom/locate buttons are 29 px; ui-spec.md §6 wants ≥ 44 px touch targets. */
 @media (pointer: coarse) {
   .maplibregl-ctrl.maplibregl-ctrl-group button {

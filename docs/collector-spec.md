@@ -76,7 +76,7 @@ Fixture cases: `toronto_v3_gbfs.json` (version "3.0", `data.feeds`), `citibike_v
 | field | 1.x / 2.x | 3.0 | rule |
 |---|---|---|---|
 | `station_id` | string (some feeds emit numbers) | string | `String(x.station_id)`; skip station if empty |
-| `name` | string | `[{text, language}]` | 3.0: entry with `language === 'en'` else first entry's `text`; 2.x: `String(name)`; if missing → `station_id` |
+| `name` | string | `[{text, language}]` | 3.0: entry with `language === 'en'` else first entry's `text`; 2.x: `String(name)`; leading/trailing whitespace trimmed (internal spacing kept); if missing or blank → `station_id` |
 | `lat`,`lon` | number | number | must be finite numbers; otherwise **skip station** and count in `n_skipped` |
 | `capacity` | number? | number? | finite integer ≥ 0 → value; else `null` |
 

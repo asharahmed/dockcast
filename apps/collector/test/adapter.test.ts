@@ -196,6 +196,28 @@ describe('normaliseStationInformation (§2.2)', () => {
     expect(n_skipped).toBe(2);
   });
 
+  it('trims leading/trailing whitespace from names (v3 and v2), keeping internal spacing', () => {
+    const v3 = {
+      data: {
+        stations: [
+          { station_id: '1', name: [{ text: ' Grafton Ave / Roncesvalles Ave', language: 'en' }], lat: 1, lon: 1 },
+          { station_id: '2', name: [{ text: 'Fort York  Blvd ', language: 'en' }], lat: 1, lon: 1 },
+        ],
+      },
+    };
+    const v2 = { data: { stations: [{ station_id: '3', name: '  15 Price St ', lat: 1, lon: 1 }] } };
+    const names = [
+      ...normaliseStationInformation(v3).stations,
+      ...normaliseStationInformation(v2).stations,
+    ].map((s) => s.name);
+    expect(names).toEqual(['Grafton Ave / Roncesvalles Ave', 'Fort York  Blvd', '15 Price St']);
+  });
+
+  it('treats a whitespace-only name as missing and falls back to station_id', () => {
+    const doc = { data: { stations: [{ station_id: '77', name: '   ', lat: 1, lon: 1 }] } };
+    expect(normaliseStationInformation(doc).stations[0]?.name).toBe('77');
+  });
+
   it('defaults name to station_id when missing', () => {
     const doc = { data: { stations: [{ station_id: '42', lat: 1, lon: 1 }] } };
     const { stations } = normaliseStationInformation(doc);

@@ -123,18 +123,26 @@ function toCapacity(v: unknown): number | null {
   return typeof v === 'number' && Number.isFinite(v) && Number.isInteger(v) && v >= 0 ? v : null;
 }
 
-/** 3.0: `[{text, language}]`, prefer `language === 'en'`, else first entry. 1.x/2.x: string/number. */
+/**
+ * 3.0: `[{text, language}]`, prefer `language === 'en'`, else first entry. 1.x/2.x: string/number.
+ * Leading/trailing whitespace is trimmed (Toronto's feed has 59 names like " Grafton Ave /
+ * Roncesvalles Ave", which otherwise sort to the top of every list); internal spacing is kept
+ * exactly. A name that is only whitespace counts as missing.
+ */
 function extractName(raw: unknown): string | undefined {
+  let text: string | undefined;
   if (Array.isArray(raw)) {
     if (raw.length === 0) return undefined;
     const en = raw.find((entry) => isRecord(entry) && entry.language === 'en');
     const chosen = en ?? raw[0];
-    if (isRecord(chosen) && typeof chosen.text === 'string') return chosen.text;
-    return undefined;
+    if (isRecord(chosen) && typeof chosen.text === 'string') text = chosen.text;
+  } else if (typeof raw === 'string') {
+    text = raw;
+  } else if (typeof raw === 'number') {
+    text = String(raw);
   }
-  if (typeof raw === 'string') return raw;
-  if (typeof raw === 'number') return String(raw);
-  return undefined;
+  const trimmed = text?.trim();
+  return trimmed ? trimmed : undefined;
 }
 
 export interface NormaliseStationInformationResult {
