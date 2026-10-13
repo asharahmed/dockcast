@@ -88,11 +88,13 @@ export function App() {
       <a href="#content" className="skip-link">
         {COPY.a11y.skipLink}
       </a>
-      <div className="flex min-h-dvh flex-col">
+      {/* The tab bar is fixed over the bottom of the screen on phones: reserve its height
+          after everything, footer included, so nothing ends up underneath it. */}
+      <div className="flex min-h-dvh flex-col pb-[var(--tabbar-h)]">
         <Header />
         <OfflineBanner />
         <RouteAnnouncer />
-        <main id="content" className="flex-1 pb-[var(--tabbar-h)]">
+        <main id="content" className="flex-1">
           <Suspense
             fallback={
               <div className="flex flex-col gap-4 px-[var(--gutter)] py-[var(--sp-8)]">
