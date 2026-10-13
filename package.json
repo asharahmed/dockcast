@@ -1,6 +1,12 @@
 {
   "name": "dockcast",
   "private": true,
+  "description": "Bike-share station availability forecasts for the time you will actually arrive",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/asharahmed/dockcast.git"
+  },
   "type": "module",
   "packageManager": "pnpm@9.15.9",
   "engines": {
@@ -12,7 +18,7 @@
     "lint": "pnpm -r lint",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",
-    "db:migrate": "tsx packages/db/bin/migrate.ts",
+    "db:migrate": "tsx --env-file-if-exists=.env packages/db/bin/migrate.ts",
     "format": "prettier --write ."
   },
   "devDependencies": {

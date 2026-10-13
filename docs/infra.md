@@ -588,12 +588,12 @@ building and smoke-testing the real stack:
 ## 13. Home-server deployment (proving period, from 2026-08-19)
 
 The stack runs on the user's Windows 11 home server (12 cores / 32 GB, Docker Desktop with the Linux
-engine, reachable over Tailscale at `100.69.154.58`), compose project `dockcast`, repo at `C:\dockcast`,
+engine, reachable over Tailscale at `<tailscale-ip>`), compose project `dockcast`, repo at `C:\dockcast`,
 env at `C:\dockcast\infra\.env`. Because the host already runs a homelab Caddy on 80/443, DockCast's Caddy
-publishes on **8088** (`CADDY_HTTP_PORT=8088`, `SITE_ADDRESS=:80`, `PUBLIC_BASE_URL=http://100.69.154.58:8088`).
-URL: http://100.69.154.58:8088 (Tailscale only, plain HTTP).
+publishes on **8088** (`CADDY_HTTP_PORT=8088`, `SITE_ADDRESS=:80`, `PUBLIC_BASE_URL=http://<tailscale-ip>:8088`).
+URL: http://<tailscale-ip>:8088 (Tailscale only, plain HTTP).
 - Redeploy after commits: `infra/scripts/deploy-homeserver.sh` (git archive → scp → build on the server → up -d).
-- Status: `ssh rdpadmin@100.69.154.58 "cd C:\dockcast; docker compose -p dockcast -f infra/docker-compose.yml ps"`
+- Status: `ssh <user>@<tailscale-ip> "cd C:\dockcast; docker compose -p dockcast -f infra/docker-compose.yml ps"`
   and the API/`/model` page; the bash `status.sh` needs a POSIX shell (run its psql lines via `docker compose exec` manually).
 - Caveat: Docker Desktop (WSL2) only starts after a Windows sign-in; enable auto sign-in for unattended reboots.
 - Trip-history bootstrap on the server used the full window 2025-04 → 2026-03 (8.36M trips).
