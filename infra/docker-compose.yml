@@ -170,6 +170,23 @@ services:
     depends_on:
       api: { condition: service_healthy }
 
+  # Optional public ingress for a host behind NAT (docs/infra.md §14): an outbound-only
+  # Cloudflare Tunnel connector. No router port-forward, and DNS points at Cloudflare, not
+  # at the home IP. Off unless COMPOSE_PROFILES=tunnel; the tunnel is defined in the
+  # Cloudflare dashboard with public hostname -> HTTP -> api:3000, which keeps cloudflared
+  # the api's only proxy hop so TRUST_PROXY=1 still yields real client IPs.
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    profiles: ["tunnel"]
+    logging: *default-logging
+    restart: unless-stopped
+    command: ["tunnel", "--no-autoupdate", "run"]
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:-}
+    depends_on:
+      api: { condition: service_healthy }
+    mem_limit: 128m
+
 volumes:
   dbdata: {}
   workercache: {}

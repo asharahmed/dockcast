@@ -195,7 +195,7 @@ CI runs the same sequence, plus a full build, against a TimescaleDB service on e
 
 ## Deploy
 
-One host, Docker Compose, Caddy for TLS. GitHub Actions builds the `api`, `collector` and `worker` images and pushes them to GHCR on every green `main` build, then rolls the host over SSH once the VPS secrets are configured. The runbook, secrets list and backup/restore scripts are in [`docs/infra.md`](docs/infra.md) (§1, §6, §7, §8).
+One host, Docker Compose, Caddy for TLS. GitHub Actions builds the `api`, `collector` and `worker` images and pushes them to GHCR on every green `main` build, then rolls the host over SSH once the VPS secrets are configured. For a host behind NAT, the optional `tunnel` profile adds a Cloudflare Tunnel connector, so the site is public without opening a port or putting the home IP in DNS. The runbook, secrets list and backup/restore scripts are in [`docs/infra.md`](docs/infra.md) (§1, §6, §7, §8, §14).
 
 ## Data sources and licences
 
