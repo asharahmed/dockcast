@@ -140,6 +140,10 @@ async function staleWhileRevalidate(request, cacheName) {
 }
 
 async function put(cache, cacheName, request, response) {
+  // Only pages are HTML. An HTML body for an icon, script or data URL is a server fallback
+  // (an older deploy answered /favicon.ico with the app shell), never something to keep.
+  const type = response.headers.get('content-type') || '';
+  if (request.mode !== 'navigate' && type.startsWith('text/html')) return;
   await cache.put(request, response);
   const limit = LIMITS[cacheName];
   if (!limit) return;

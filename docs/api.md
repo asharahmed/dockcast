@@ -257,5 +257,5 @@ alert scheduler. `app.set('trust proxy', TRUST_PROXY)` (Caddy in front). A secon
 
 ## 10. Static assets
 
-Anything not under `/api/` serves `apps/web/dist` with SPA fallback to `index.html`
+Anything not under `/api/` serves `apps/web/dist` with SPA fallback to `index.html`, except that a missing path ending in a file extension (`/favicon.ico`, `/x.png`) is a plain 404, never the HTML shell
 (`Cache-Control: no-cache` for `index.html`, `immutable, max-age=31536000` for hashed `/assets/*`, `max-age=3600` for un-hashed public files like the favicon/icons/manifest). `/sw.js` served with `Service-Worker-Allowed: /` and `no-cache`.

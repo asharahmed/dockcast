@@ -442,9 +442,9 @@ immediately (nothing to update from).
 `/icons/icon-192.png` and the monochrome `/icons/badge-96.png` badge. `lib/push.ts` still uses
 `navigator.serviceWorker.ready`.
 
-**Install.** `public/site.webmanifest`: `id`/`scope` `/`, `display: standalone`, any + maskable
-icons, shortcuts (Trip check, My commutes, Model), narrow and wide screenshots in
-`public/screenshots/`. `index.html` adds `mobile-web-app-capable`, the `apple-*` tags (status bar
+**Install.** `public/site.webmanifest`: `id`/`scope` `/`, `display: standalone`, PNG icons only
+(any 192/512, maskable 192/512; an SVG entry broke Android home-screen icons), shortcuts (Trip check, My commutes, Model), narrow and wide screenshots in
+`public/screenshots/`. Root-path icons exist as real files (`/apple-touch-icon.png` 180 px opaque, `/apple-touch-icon-precomposed.png`, `/favicon.ico`) because iOS and launchers probe them directly. `index.html` adds `mobile-web-app-capable`, the `apple-*` tags (status bar
 `default`, so the header never sits under it) and a `theme-color` per colour scheme; `lib/theme.ts`
 rewrites them when the user picks Light/Dark manually. `lib/install.ts` captures
 `beforeinstallprompt` before React mounts. `InstallCard` (About page) offers the browser's prompt,

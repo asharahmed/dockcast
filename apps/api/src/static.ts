@@ -58,6 +58,13 @@ export function mountStatic(app: Express, config: Config, logger: Logger): void 
       res.status(404).send('Not found');
       return;
     }
+    // A missing *file* (the path ends in an extension: /apple-touch-icon.png, /favicon.ico)
+    // is a real 404. Serving the HTML shell with 200 there makes icon fetchers, crawlers and
+    // the service worker cache an HTML page under an image URL. SPA routes never have one.
+    if (/\.[a-z0-9]{1,8}$/i.test(req.path)) {
+      res.status(404).type('text/plain').send('Not found');
+      return;
+    }
     res.setHeader('Cache-Control', 'no-cache');
     res.sendFile(indexHtmlPath, (err) => {
       if (err) next(err);

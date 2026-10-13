@@ -15,10 +15,13 @@ const publicBaseUrl = (process.env.VITE_PUBLIC_BASE_URL ?? 'https://dockcast.aah
 /** Files from public/ the service worker precaches alongside the build output. */
 const PUBLIC_PRECACHE = [
   '/favicon.svg',
+  '/favicon.ico',
   '/site.webmanifest',
+  '/apple-touch-icon.png',
   '/icons/icon-192.png',
   '/icons/icon-512.png',
-  '/icons/apple-touch-icon.png',
+  '/icons/icon-maskable-192.png',
+  '/icons/icon-maskable-512.png',
   '/icons/badge-96.png',
 ];
 

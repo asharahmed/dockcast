@@ -25,6 +25,18 @@ describe('static SPA serving (docs/api.md §10)', () => {
       expect(res.headers['cache-control']).toBe('no-cache');
     });
 
+    it('404s a missing file path instead of answering with the HTML shell', async () => {
+      for (const path of ['/apple-touch-icon-missing.png', '/nope/favicon.ico', '/robots.txt']) {
+        const res = await request(ctx.app).get(path);
+        expect(res.status).toBe(404);
+        expect(res.text).not.toContain('test-fixture-spa-shell');
+      }
+      // Extension-less routes, including ones with dots earlier in the path, still get the shell.
+      const route = await request(ctx.app).get('/station/7000');
+      expect(route.status).toBe(200);
+      expect(route.text).toContain('test-fixture-spa-shell');
+    });
+
     it('serves hashed assets with immutable, long-lived caching', async () => {
       const res = await request(ctx.app).get('/assets/app.abc123.js');
       expect(res.status).toBe(200);
