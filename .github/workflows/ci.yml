@@ -2,7 +2,7 @@ name: ci
 on:
   pull_request:
   push: { branches: [main] }
-concurrency: { group: ci-${{ github.ref }}, cancel-in-progress: true }
+concurrency: { group: "ci-${{ github.ref }}", cancel-in-progress: true }
 jobs:
   node:
     runs-on: ubuntu-24.04
