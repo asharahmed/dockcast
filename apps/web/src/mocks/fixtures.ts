@@ -217,6 +217,7 @@ export const userResponseFixture: UserResponse = {
     id: '9c858f5e-3e1e-4a3c-8f0a-7b6a2b1e2b8a',
     email: 'rider@example.com',
     created_at: '2026-08-01T00:00:00Z',
+    is_admin: false,
   },
 };
 
@@ -488,6 +489,7 @@ export const modelResponseFixture: ModelResponse = {
   active: { gbm: modelVersionActiveGbmFixture, bd: modelVersionActiveBdFixture },
   metrics: buildModelMetrics(),
   versions: [modelVersionShadowFixture, modelVersionActiveBdFixture, modelVersionActiveGbmFixture],
+  viewer: { is_admin: true },
 };
 
 export const modelVersionDetailResponseFixture: ModelVersionDetailResponse = {

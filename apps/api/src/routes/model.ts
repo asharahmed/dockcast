@@ -1,5 +1,11 @@
 /**
  * `docs/api.md` §4 — GET /model, GET /model/versions/:id.
+ *
+ * Two shapes of `/model`, decided server-side (`lib/viewer.ts`): the operator
+ * view for signed-in `ADMIN_EMAILS` (everything, `private, no-store`) and the
+ * public view for everyone else (serving tier + persistence metrics only, no
+ * version history, no gate/validation detail on the active models, cacheable).
+ * `/model/versions/:id` is operator-only and 404s otherwise.
  */
 import { Router } from 'express';
 import { z } from 'zod';
@@ -19,10 +25,12 @@ import {
   type MetricsSlice,
   type MetricName,
   type ModelEvalRow,
+  metricsTierForServing,
 } from '@dockcast/shared';
 import type { RouteDeps } from '../deps.js';
 import { sendJson } from '../lib/respond.js';
 import { notFound } from '../middleware/errors.js';
+import { isAdminRequest } from '../lib/viewer.js';
 import { parseIntParam, parseQuery } from '../lib/validate.js';
 import { getCityBySlug } from '../services/cities.queries.js';
 import {
@@ -72,6 +80,7 @@ export function modelRouter(deps: RouteDeps): Router {
     if (!city) throw notFound(`Unknown city: ${query.city}`);
 
     const now = deps.now();
+    const admin = await isAdminRequest(deps, req);
     const [
       dataSince,
       nStationsActive,
@@ -96,6 +105,17 @@ export function modelRouter(deps: RouteDeps): Router {
       listRecentModelVersions(deps.pool, city.id, 30),
     ]);
 
+    // Public view: only the tier that is actually serving, plus the persistence
+    // baseline it is compared against; shadow candidates and the other tiers stay private.
+    const servingMetricsTier = metricsTierForServing(servingTier as ServingTier);
+    const publicTiers = new Set<MetricsTier>(['persistence']);
+    if (servingMetricsTier) publicTiers.add(servingMetricsTier);
+    const summarise = (row: ModelVersionRow | null): ModelVersionSummary | null => {
+      if (!row) return null;
+      const full = toModelVersionSummary(row);
+      return admin ? full : { ...full, metrics_val: null, gate: null };
+    };
+
     const body: ModelResponse = {
       city: { slug: city.slug, name: city.name, tz: city.tz },
       data_since: dataSince ? dataSince.toISOString() : null,
@@ -110,29 +130,41 @@ export function modelRouter(deps: RouteDeps): Router {
         last_run_at: predictorLastRunAt ? predictorLastRunAt.toISOString() : null,
         serving_tier: servingTier as ServingTier,
       },
-      active: {
-        gbm: activeGbm ? toModelVersionSummary(activeGbm) : null,
-        bd: activeBd ? toModelVersionSummary(activeBd) : null,
-      },
-      metrics: metricsRows.map((r) => ({
-        day: r.day,
-        window_days: r.window_days as 1 | 7,
-        tier: r.tier as MetricsTier,
-        target: r.target as MetricsTarget,
-        horizon: r.horizon,
-        slice: r.slice as MetricsSlice,
-        metric: r.metric as MetricName,
-        value: r.value,
-        n: r.n,
-      })),
-      versions: versionRows.map(toModelVersionSummary),
+      active: { gbm: summarise(activeGbm), bd: summarise(activeBd) },
+      metrics: metricsRows
+        .filter((r) => admin || publicTiers.has(r.tier as MetricsTier))
+        .map((r) => ({
+          day: r.day,
+          window_days: r.window_days as 1 | 7,
+          tier: r.tier as MetricsTier,
+          target: r.target as MetricsTarget,
+          horizon: r.horizon,
+          slice: r.slice as MetricsSlice,
+          metric: r.metric as MetricName,
+          value: r.value,
+          n: r.n,
+        })),
+      versions: admin ? versionRows.map(toModelVersionSummary) : [],
+      viewer: { is_admin: admin },
     };
-    sendJson(res, 200, modelResponseSchema, body, deps.config, 'public, max-age=300');
+    // The body depends on the session cookie: the operator view must never land in a
+    // shared cache, and a browser must not reuse a cached public body after signing in.
+    res.setHeader('Vary', 'Cookie');
+    sendJson(
+      res,
+      200,
+      modelResponseSchema,
+      body,
+      deps.config,
+      admin ? 'private, no-store' : 'public, max-age=300',
+    );
   });
 
   router.get('/model/versions/:id', async (req, res) => {
     const id = parseIntParam(req.params.id);
     if (id === null) throw notFound('Unknown model version');
+    // Operator-only; a 404 rather than a 403 so the public view has nothing to probe.
+    if (!(await isAdminRequest(deps, req))) throw notFound('Unknown model version');
     const version = await getModelVersionById(deps.pool, id);
     if (!version) throw notFound(`Unknown model version: ${req.params.id}`);
 
@@ -149,7 +181,8 @@ export function modelRouter(deps: RouteDeps): Router {
         value: r.value,
       })),
     };
-    sendJson(res, 200, modelVersionDetailResponseSchema, body, deps.config, 'public, max-age=300');
+    res.setHeader('Vary', 'Cookie');
+    sendJson(res, 200, modelVersionDetailResponseSchema, body, deps.config, 'private, no-store');
   });
 
   return router;

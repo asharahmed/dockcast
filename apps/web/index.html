@@ -9,6 +9,20 @@
     <link rel="manifest" href="/site.webmanifest" />
     <meta name="theme-color" content="#1c4f8f" />
     <title>DockCast</title>
+    <meta name="description" content="Bike-share availability forecasts for when you'll actually be at the station. Will there be a bike? Will there be a dock? Calibrated odds, scored in public." />
+    <meta name="application-name" content="DockCast" />
+    <meta name="apple-mobile-web-app-title" content="DockCast" />
+    <!-- Social previews. __PUBLIC_BASE_URL__ is replaced at build time (vite.config.ts) because
+         og:url / og:image have to be absolute. -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="DockCast" />
+    <meta property="og:title" content="DockCast" />
+    <meta property="og:description" content="Bike-share availability forecasts for when you'll actually be at the station." />
+    <meta property="og:url" content="__PUBLIC_BASE_URL__/" />
+    <meta property="og:image" content="__PUBLIC_BASE_URL__/og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
     <!-- ui-spec.md §2.1 originally called for a pre-paint inline <script> here to apply a
          saved theme before first paint. The api's CSP (`script-src 'self'`, no
          'unsafe-inline'/nonce) blocks inline scripts, so that bootstrap silently never ran

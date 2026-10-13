@@ -68,7 +68,18 @@ const envSchema = z.object({
   APPLE_TEAM_ID: z.string().min(1).optional(),
   APPLE_KEY_ID: z.string().min(1).optional(),
   APPLE_PRIVATE_KEY: z.string().min(1).optional(),
+  // Comma-separated emails that get the operator view of /model (docs/api.md §4).
+  // Unset or empty: nobody is an admin and /model is the public view for everyone.
+  ADMIN_EMAILS: z.string().optional(),
 });
+
+function parseAdminEmails(raw: string | undefined): string[] {
+  if (!raw) return [];
+  return raw
+    .split(',')
+    .map((s) => s.trim().toLowerCase())
+    .filter((s) => s.length > 0);
+}
 
 export interface Config {
   port: number;
@@ -93,6 +104,8 @@ export interface Config {
   appleTeamId: string | null;
   appleKeyId: string | null;
   applePrivateKey: string | null;
+  /** Lower-cased emails with the operator view of `/model`; empty = nobody. */
+  adminEmails: string[];
 }
 
 /**
@@ -130,5 +143,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     appleTeamId: data.APPLE_TEAM_ID ?? null,
     appleKeyId: data.APPLE_KEY_ID ?? null,
     applePrivateKey: data.APPLE_PRIVATE_KEY?.replace(/\\n/g, '\n') ?? null,
+    adminEmails: parseAdminEmails(data.ADMIN_EMAILS),
   };
 }

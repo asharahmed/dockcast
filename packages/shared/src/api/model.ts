@@ -47,6 +47,24 @@ export const metricsTierSchema = z.enum([
 ]);
 export type MetricsTier = z.infer<typeof metricsTierSchema>;
 
+/**
+ * The online-metrics tier that scores what a {@link ServingTier} serves, or
+ * `null` when nothing is served. Used by the public `/model` view, which only
+ * shows the serving tier and the persistence baseline (`docs/api.md` §4).
+ */
+export function metricsTierForServing(tier: ServingTier): MetricsTier | null {
+  switch (tier) {
+    case 'gbm':
+      return 'gbm_active';
+    case 'bd_cal':
+      return 'bd_cal';
+    case 'bd_raw':
+      return 'bd_raw';
+    case 'none':
+      return null;
+  }
+}
+
 /** `docs/ml-spec.md` §3 / §5.2 (`model_eval.target`, `model_metrics_daily.target`). */
 export const metricsTargetSchema = z.enum(['bike', 'dock', 'cnt']);
 export type MetricsTarget = z.infer<typeof metricsTargetSchema>;
@@ -171,6 +189,12 @@ export const modelResponseSchema = z.object({
   }),
   metrics: z.array(modelMetricRowSchema),
   versions: z.array(modelVersionSummarySchema),
+  /**
+   * Which shape this response is (`docs/api.md` §4): `is_admin: false` means the
+   * public view (serving tier + persistence metrics, no `versions`, no gate or
+   * validation detail on `active`); `true` means the full operator view.
+   */
+  viewer: z.object({ is_admin: z.boolean() }),
 });
 export type ModelResponse = z.infer<typeof modelResponseSchema>;
 

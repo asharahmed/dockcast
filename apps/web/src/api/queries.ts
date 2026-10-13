@@ -165,6 +165,9 @@ export function useLogin() {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.me });
       void queryClient.invalidateQueries({ queryKey: ['commutes'] });
+      // /model is viewer-dependent (docs/api.md §4): refetch it for the new session.
+      void queryClient.invalidateQueries({ queryKey: ['model'] });
+      void queryClient.invalidateQueries({ queryKey: ['model-version'] });
     },
   });
 }
@@ -177,6 +180,9 @@ export function useRegister() {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.me });
       void queryClient.invalidateQueries({ queryKey: ['commutes'] });
+      // /model is viewer-dependent (docs/api.md §4): refetch it for the new session.
+      void queryClient.invalidateQueries({ queryKey: ['model'] });
+      void queryClient.invalidateQueries({ queryKey: ['model-version'] });
     },
   });
 }
@@ -188,6 +194,9 @@ export function useLogout() {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.me });
       void queryClient.invalidateQueries({ queryKey: ['commutes'] });
+      // /model is viewer-dependent (docs/api.md §4): refetch it for the new session.
+      void queryClient.invalidateQueries({ queryKey: ['model'] });
+      void queryClient.invalidateQueries({ queryKey: ['model-version'] });
     },
   });
 }

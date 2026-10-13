@@ -25,7 +25,7 @@ beforeEach(() => {
   server.use(
     http.get('/api/v1/auth/me', () =>
       HttpResponse.json({
-        user: { id: '11111111-1111-1111-1111-111111111111', email: 'rider@example.com', created_at: '2026-08-17T12:00:00Z' },
+        user: { id: '11111111-1111-1111-1111-111111111111', email: 'rider@example.com', created_at: '2026-08-17T12:00:00Z', is_admin: false },
       }),
     ),
   );
@@ -61,7 +61,7 @@ describe('AccountPage', () => {
       http.get('/api/v1/auth/identities', () =>
         HttpResponse.json({
           has_password: false,
-          identities: [{ provider: 'google', email: 'rider@example.com', created_at: '2026-08-20T00:00:00Z' }],
+          identities: [{ provider: 'google', email: 'rider@example.com', created_at: '2026-08-20T00:00:00Z', is_admin: false }],
         }),
       ),
     );

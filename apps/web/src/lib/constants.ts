@@ -366,5 +366,34 @@ export const COPY = {
       'Metrics are computed nightly over forecasts made at :00/:15/:30/:45 and the state observed at their target time. Definitions:',
     footnoteLinkLabel: 'docs/ml-spec.md',
     couldntLoad: "Couldn't load model metrics.",
+    // Public view (ui-spec.md §4.5): what a visitor who is not the operator sees.
+    public: {
+      summary: {
+        learnedModel: 'Learned model',
+        activeSince: (date: string) => `active since ${date}`,
+        notYet: 'not yet (flow model serving)',
+        scoredThrough: 'Scored through',
+      },
+      current: {
+        heading: "What's forecasting right now",
+        gbm: 'Forecasts come from the learned model: gradient-boosted models trained every night on DockCast’s own forecast history, with the flow model’s output as one of their inputs. It serves because it beat the flow model on held-out days. A new version trains nightly and replaces it only if it scores better; otherwise the current one keeps serving.',
+        bd_cal:
+          'Forecasts come from the calibrated flow model: each station is a queue whose arrival and departure rates come from a year of trip history and the weather, with its probabilities corrected against recent outcomes. A learned challenger trains every night and takes over once it beats this model on held-out days.',
+        bd_raw:
+          'Forecasts come from the flow model: each station is a queue whose arrival and departure rates come from a year of trip history and the weather. Calibration against real outcomes switches on after two weeks of scored forecasts; a learned challenger then trains nightly and takes over once it beats this model on held-out days.',
+        none: 'No forecasts yet for this city. The map shows live availability only until a trip-history bootstrap has run.',
+      },
+      accuracy: {
+        heading: 'How accurate it has been (last 7 days)',
+        intro: 'Measured an hour ahead, across all stations, on forecasts scored against what actually happened.',
+        errorPhrase: (pct: number) => (pct >= 0 ? `${pct}% less error` : `${-pct}% more error`),
+        vsPersistence: (bikes: string, docks: string) =>
+          `The chance-of-a-bike forecast has ${bikes} than assuming nothing changes; the chance-of-a-dock forecast, ${docks}.`,
+        calibration: (bikePts: string, dockPts: string) =>
+          `Calibration gap: ${bikePts} points for bikes, ${dockPts} for docks. A gap of 0 would mean an 80% forecast comes true exactly 80% of the time.`,
+        mae: (bikes: string) => `Expected bike counts are off by ${bikes} bikes on average.`,
+        empty: 'No scored forecasts yet for the model that is serving. Scores appear after the first full day of forecasts.',
+      },
+    },
   },
 } as const;

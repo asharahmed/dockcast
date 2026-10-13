@@ -21,7 +21,7 @@ No LLM or external inference service sits anywhere in the forecasting path. The 
 - **Trip check**: pick origin, destination and departure time, and get a verdict ("Looks good", "Risky", "Don't count on it") plus nearby alternatives when the odds are poor.
 - **Station pages**: current state, a forecast table at six horizons, a 24 h history and forecast chart with an uncertainty band, and a typical-day profile.
 - **Saved commutes** with a live outlook chip and optional web-push alerts before you leave if the odds have dropped.
-- **Model transparency**: the public `/model` page shows Brier score, calibration and MAE for every model tier over rolling 1-day and 7-day windows, with no hand-picked numbers.
+- **Model transparency**: the public `/model` page explains which model is serving and how it has scored over the last 7 days, calibration included, with no hand-picked numbers. The operator (emails in `ADMIN_EMAILS`) sees the full picture: every tier, every slice, and the version history with each nightly gate result.
 - **Accounts** with email and password, Google, or Apple sign-in, and identity linking between them.
 
 | Station page | Trip check |

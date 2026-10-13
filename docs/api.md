@@ -115,7 +115,17 @@ TripLeg: {
 
 ## 4. Model transparency (public)
 
-### GET /model?city=toronto  — max-age=300
+Two views of the same endpoints, decided server-side from the session: the **operator view**
+for a signed-in user whose email is in `ADMIN_EMAILS` (§9), and the **public view** for everyone
+else, signed in or not. The public view is what the detailed data is hidden behind, so the
+trimming happens in the api, never only in the client.
+
+### GET /model?city=toronto  — operator: `private, no-store`; public: `max-age=300`; both `Vary: Cookie`
+Public view differences: `metrics` keeps only the rows of the serving tier (`gbm` → `gbm_active`,
+`bd_cal`, `bd_raw`; nothing when `none`) plus `persistence`; `versions` is `[]`; `active.gbm` /
+`active.bd` keep their identity fields but `metrics_val` and `gate` are `null`. `viewer.is_admin`
+tells the client which view it received. `Vary: Cookie` keeps a shared cache from handing the
+operator body to the public and a browser from reusing a public body after signing in.
 ```
 ModelResponse: {
   city: { slug, name, tz },
@@ -125,20 +135,22 @@ ModelResponse: {
   predictor: { last_run_at: string|null, serving_tier: 'gbm'|'bd_cal'|'bd_raw'|'none' },
   active: { gbm: ModelVersionSummary|null, bd: ModelVersionSummary|null },
   metrics: [{ day, window_days, tier, target, horizon, slice, metric, value, n }],  // all rows for the latest `day` present *per* `window_days` (the nightly job can leave a newest day with 1-day rows only); metric names: brier, logloss, auc, ece, mae, rmse, n, and reliability bins rel_bin_<0..9>_{mean_pred,frac_pos,n} (horizon 0 = pooled)
-  versions: ModelVersionSummary[]              // last 30, newest first
+  versions: ModelVersionSummary[],             // last 30, newest first; [] in the public view
+  viewer: { is_admin: boolean }                // which view this is
 }
 ModelVersionSummary: { id, tier, status, trained_for_date, created_at, activated_at, feature_schema_version, train_window: [string,string]|null, metrics_val: MetricsVal|null, gate: Gate|null }
 MetricsVal: { n_val: number, brier: { bike: number, dock: number }, logloss: { bike, dock }, auc: { bike: number|null, dock: number|null }, ece: { bike, dock }, mae: number, rmse: number,
               brier_at_risk: { bike, dock }, ref: { tier: 'bd_cal'|'bd_raw'|null, brier: { bike, dock }|null, mae: number|null } }   // pooled over horizons, val split; `ref` = the baseline it was compared to (gbm only)
 Gate: { passed: boolean, checks: [{ name: string, value: number|null, threshold: number|null, ok: boolean }] }   // names: brier_bike_vs_ref, brier_dock_vs_ref, ece_bike, ece_dock, mae_vs_ref, brier_bike_vs_active, brier_dock_vs_active
 ```
-### GET /model/versions/:id  — max-age=300
+### GET /model/versions/:id  — operator only; `private, no-store`, `Vary: Cookie`
+404 `not_found` for anyone who is not an operator, the same as for an unknown id, so the public view has nothing to probe.
 `ModelVersionDetailResponse: { version: ModelVersionSummary, eval: [{ tier, split, target, horizon, slice, metric, value }] }` — `tier` ∈ `gbm` (a gbm version's own rows) | `bd_raw` | `bd_cal` | `persistence` (baseline rows stored on the run's bd version).
 
 ## 5. Auth
 
 Body schemas: `RegisterRequest { email: string(email, ≤254), password: string(10..200) }`, `LoginRequest` same.
-`UserResponse { user: { id, email, created_at } }`.
+`UserResponse { user: { id, email, created_at, is_admin } }` — `is_admin`: the email is in `ADMIN_EMAILS` (§9), case-insensitively.
 - `POST /auth/register` → 201 `UserResponse` (also logs in). 409 if email exists (case-insensitive).
 - `POST /auth/login` → 200 `UserResponse`; 401 `unauthorized` on bad credentials (same message for unknown email / wrong password).
 - `POST /auth/logout` → 204.
@@ -236,7 +248,8 @@ For each active city with `forecasting_enabled`:
 Env (validated with zod at boot; see `infra.md` `.env.example`): `PORT` (3000), `DATABASE_URL`,
 `SESSION_SECRET` (≥32 chars), `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`,
 `PUBLIC_BASE_URL`, `WEB_DIST_DIR` (default `<repo>/apps/web/dist`), `MIGRATIONS_DIR`
-(default `<repo>/db/migrations`), `LOG_LEVEL`, `NODE_ENV`, `TRUST_PROXY` (default `1`).
+(default `<repo>/db/migrations`), `LOG_LEVEL`, `NODE_ENV`, `TRUST_PROXY` (default `1`),
+`ADMIN_EMAILS` (comma-separated, compared lower-cased; empty = nobody has the operator view, §4).
 Boot order: load config → `migrate()` (from `@dockcast/db`) → build app → listen → start
 alert scheduler. `app.set('trust proxy', TRUST_PROXY)` (Caddy in front). A second entry
 `dist/migrate.js` runs migrations and exits 0/1 (used by compose one-shots and CI).

@@ -3,22 +3,43 @@ import request from 'supertest';
 import { modelResponseSchema, modelVersionDetailResponseSchema } from '@dockcast/shared';
 import { setupTestApp, type TestContext } from './helpers/testApp.js';
 
+type TestAgent = ReturnType<typeof request.agent>;
+
+const ADMIN_EMAIL = 'operator@example.com';
+const PASSWORD = 'correct-horse-battery';
+
+/** A supertest agent whose cookie jar holds a session for `email` (registers it on first use). */
+async function signedInAgent(ctx: TestContext, email: string): Promise<TestAgent> {
+  const agent = request.agent(ctx.app);
+  const res = await agent
+    .post('/api/v1/auth/register')
+    .set('X-Requested-With', 'fetch')
+    .send({ email, password: PASSWORD });
+  expect(res.status).toBe(201);
+  return agent;
+}
+
 describe('GET /model, GET /model/versions/:id', () => {
   let ctx: TestContext;
+  let admin: TestAgent;
+  let member: TestAgent;
 
   beforeAll(async () => {
-    ctx = await setupTestApp();
+    ctx = await setupTestApp({ ADMIN_EMAILS: ` ${ADMIN_EMAIL.toUpperCase()} ,` });
+    admin = await signedInAgent(ctx, ADMIN_EMAIL);
+    member = await signedInAgent(ctx, 'member@example.com');
   }, 60_000);
 
   afterAll(async () => {
     await ctx.teardown();
   });
 
-  describe('GET /model?city=toronto', () => {
+  describe('GET /model?city=toronto (operator view)', () => {
     it('200s, schema-valid, reflects seeded model/metrics/worker data', async () => {
-      const res = await request(ctx.app).get('/api/v1/model').query({ city: 'toronto' });
+      const res = await admin.get('/api/v1/model').query({ city: 'toronto' });
       expect(res.status).toBe(200);
       const body = modelResponseSchema.parse(res.body);
+      expect(body.viewer.is_admin).toBe(true);
 
       expect(body.city.slug).toBe('toronto');
       expect(body.data_since).not.toBeNull();
@@ -40,15 +61,51 @@ describe('GET /model, GET /model/versions/:id', () => {
 
       expect(body.metrics.length).toBeGreaterThan(0);
       expect(body.metrics.every((m) => m.day === '2026-03-09')).toBe(true);
+      // The operator view keeps every scored tier, including ones the public view drops.
+      expect(body.metrics.some((m) => m.tier === 'gbm_active')).toBe(true);
 
       const versionIds = body.versions.map((v) => v.id);
       expect(versionIds).toContain(ctx.seeded.modelVersionGbmId);
       expect(versionIds).toContain(ctx.seeded.modelVersionBdId);
     });
 
-    it('sets Cache-Control: public, max-age=300', async () => {
+    it('is private and uncacheable, and varies on the cookie', async () => {
+      const res = await admin.get('/api/v1/model').query({ city: 'toronto' });
+      expect(res.headers['cache-control']).toBe('private, no-store');
+      expect(res.headers['vary']).toMatch(/Cookie/);
+    });
+  });
+
+  describe('GET /model?city=toronto (public view)', () => {
+    for (const [who, get] of [
+      ['anonymous', () => request(ctx.app).get('/api/v1/model')],
+      ['a signed-in non-admin', () => member.get('/api/v1/model')],
+    ] as const) {
+      it(`${who}: serving tier + persistence metrics only, no versions, no gate detail`, async () => {
+        const res = await get().query({ city: 'toronto' });
+        expect(res.status).toBe(200);
+        const body = modelResponseSchema.parse(res.body);
+        expect(body.viewer.is_admin).toBe(false);
+
+        // Seeded serving tier is bd_raw: only its rows and the persistence baseline may appear
+        // (the seed scores gbm_active and persistence, so persistence is what is left).
+        expect(body.predictor.serving_tier).toBe('bd_raw');
+        expect(body.metrics.length).toBeGreaterThan(0);
+        const tiers = new Set(body.metrics.map((m) => m.tier));
+        expect([...tiers].every((t) => t === 'bd_raw' || t === 'persistence')).toBe(true);
+
+        expect(body.versions).toEqual([]);
+        expect(body.active.gbm?.id).toBe(ctx.seeded.modelVersionGbmId);
+        expect(body.active.gbm?.metrics_val).toBeNull();
+        expect(body.active.gbm?.gate).toBeNull();
+        expect(body.active.bd?.metrics_val).toBeNull();
+      });
+    }
+
+    it('sets Cache-Control: public, max-age=300 and varies on the cookie', async () => {
       const res = await request(ctx.app).get('/api/v1/model').query({ city: 'toronto' });
       expect(res.headers['cache-control']).toBe('public, max-age=300');
+      expect(res.headers['vary']).toMatch(/Cookie/);
     });
 
     it('empty-metrics city (ottawa): metrics=[], active tiers null, nullable fields null', async () => {
@@ -82,10 +139,8 @@ describe('GET /model, GET /model/versions/:id', () => {
   });
 
   describe('GET /model/versions/:id', () => {
-    it('200s with version + eval rows, schema-valid', async () => {
-      const res = await request(ctx.app).get(
-        `/api/v1/model/versions/${ctx.seeded.modelVersionGbmId}`,
-      );
+    it('200s with version + eval rows, schema-valid (operator)', async () => {
+      const res = await admin.get(`/api/v1/model/versions/${ctx.seeded.modelVersionGbmId}`);
       expect(res.status).toBe(200);
       const body = modelVersionDetailResponseSchema.parse(res.body);
       expect(body.version.id).toBe(ctx.seeded.modelVersionGbmId);
@@ -101,17 +156,26 @@ describe('GET /model, GET /model/versions/:id', () => {
       });
     });
 
-    it('sets Cache-Control: public, max-age=300', async () => {
-      const res = await request(ctx.app).get(
-        `/api/v1/model/versions/${ctx.seeded.modelVersionGbmId}`,
-      );
-      expect(res.headers['cache-control']).toBe('public, max-age=300');
+    it('is private and uncacheable', async () => {
+      const res = await admin.get(`/api/v1/model/versions/${ctx.seeded.modelVersionGbmId}`);
+      expect(res.headers['cache-control']).toBe('private, no-store');
     });
 
     it('404s for an unknown version id', async () => {
-      const res = await request(ctx.app).get('/api/v1/model/versions/999999999');
+      const res = await admin.get('/api/v1/model/versions/999999999');
       expect(res.status).toBe(404);
       expect(res.body.error.code).toBe('not_found');
+    });
+
+    it('404s for anyone who is not an operator, even for a real id', async () => {
+      for (const get of [
+        () => request(ctx.app).get(`/api/v1/model/versions/${ctx.seeded.modelVersionGbmId}`),
+        () => member.get(`/api/v1/model/versions/${ctx.seeded.modelVersionGbmId}`),
+      ]) {
+        const res = await get();
+        expect(res.status).toBe(404);
+        expect(res.body.error.code).toBe('not_found');
+      }
     });
   });
 });
@@ -126,7 +190,7 @@ describe('GET /model — windows fall back to their own latest day', () => {
   let ctx: TestContext;
 
   beforeAll(async () => {
-    ctx = await setupTestApp();
+    ctx = await setupTestApp({ ADMIN_EMAILS: ADMIN_EMAIL });
     // A newer day for the 1-day window only, as a run that died mid-`compute` leaves behind.
     await ctx.pool.query(
       `INSERT INTO model_metrics_daily (city_id, day, window_days, tier, target, horizon, slice, metric, value, n)
@@ -140,7 +204,8 @@ describe('GET /model — windows fall back to their own latest day', () => {
   });
 
   it('serves the newest 1-day rows and still serves the older 7-day rows', async () => {
-    const res = await request(ctx.app).get('/api/v1/model').query({ city: 'toronto' });
+    const admin = await signedInAgent(ctx, ADMIN_EMAIL);
+    const res = await admin.get('/api/v1/model').query({ city: 'toronto' });
     expect(res.status).toBe(200);
     const body = modelResponseSchema.parse(res.body);
 

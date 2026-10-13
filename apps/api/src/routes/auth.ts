@@ -15,7 +15,9 @@ import {
   type UserResponse,
 } from '@dockcast/shared';
 import type { RouteDeps } from '../deps.js';
+import type { Config } from '../config.js';
 import { sendJson } from '../lib/respond.js';
+import { isAdminEmail } from '../lib/viewer.js';
 import { conflict, notFound, unauthorized, validationError } from '../middleware/errors.js';
 import { parseBody } from '../lib/validate.js';
 import { createRateLimiter } from '../middleware/rateLimit.js';
@@ -37,8 +39,15 @@ import { buildAppleAuthUrl, exchangeAppleCode } from '../auth/appleOidc.js';
 /** Same message for both "unknown email" and "wrong password" (`docs/api.md` §5). */
 const INVALID_CREDENTIALS_MESSAGE = 'Invalid email or password';
 
-function toUserResponse(user: UserRow): UserResponse {
-  return { user: { id: user.id, email: user.email, created_at: user.created_at.toISOString() } };
+function toUserResponse(user: UserRow, config: Config): UserResponse {
+  return {
+    user: {
+      id: user.id,
+      email: user.email,
+      created_at: user.created_at.toISOString(),
+      is_admin: isAdminEmail(config, user.email),
+    },
+  };
 }
 
 export function authRouter(deps: RouteDeps): Router {
@@ -59,7 +68,7 @@ export function authRouter(deps: RouteDeps): Router {
     req.session.userId = user.id;
     await touchLastLogin(deps.pool, user.id, deps.now());
 
-    sendJson(res, 201, userResponseSchema, toUserResponse(user), deps.config, 'no-store');
+    sendJson(res, 201, userResponseSchema, toUserResponse(user, deps.config), deps.config, 'no-store');
   });
 
   router.post('/auth/login', authLimiter, async (req, res) => {
@@ -77,7 +86,7 @@ export function authRouter(deps: RouteDeps): Router {
     req.session.userId = user.id;
     await touchLastLogin(deps.pool, user.id, deps.now());
 
-    sendJson(res, 200, userResponseSchema, toUserResponse(user), deps.config, 'no-store');
+    sendJson(res, 200, userResponseSchema, toUserResponse(user, deps.config), deps.config, 'no-store');
   });
 
   router.post('/auth/logout', async (req, res) => {
@@ -89,7 +98,7 @@ export function authRouter(deps: RouteDeps): Router {
   router.get('/auth/me', requireAuth, async (req, res) => {
     const user = await findUserById(deps.pool, req.session.userId as string);
     if (!user) throw unauthorized();
-    sendJson(res, 200, userResponseSchema, toUserResponse(user), deps.config, 'no-store');
+    sendJson(res, 200, userResponseSchema, toUserResponse(user, deps.config), deps.config, 'no-store');
   });
 
   const googleEnabled = deps.config.googleClientId !== null && deps.config.googleClientSecret !== null;

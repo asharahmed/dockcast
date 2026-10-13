@@ -305,8 +305,18 @@ Reads `?from&to&at&ride`; renders `TripPlanner` (prefilled, collapsed summary) +
 - Loading: 3 skeleton rows. Error: EmptyState "Couldn't load your commutes." + Retry.
 
 ### 4.5 `/model` — Model quality (public)
-**Data**: `useModel(slug)`; drill-down `useModelVersion(id)` when a version row is expanded.
+**Data**: `useModel(slug)`; drill-down `useModelVersion(id)` when a version row is expanded. The response's `viewer.is_admin` (api.md §4) picks one of two views below; sign-in/out invalidates `['model']` so the view follows the session.
 **Layout**: max-width 1100; sections separated by `--sp-8` and a hairline; left-aligned prose column (max 68 ch) for explainers.
+
+**Public view** (`viewer.is_admin === false`; `PublicModelView`) — for visitors; explains the serving model, never the version history:
+1. Intro as below.
+2. Fact grid (same style as `ModelSummary`): `Serving now` → tier label; `Learned model` → `active since <d MMM yyyy>` from `active.gbm.activated_at` or "not yet (flow model serving)"; `Last forecast run` → relative; `Data since`; `Stations`; `Scored through` → newest `day` in `metrics` or "—".
+3. "What's forecasting right now" — one paragraph per `serving_tier` (`gbm` / `bd_cal` / `bd_raw` / `none`), plain language, from `COPY.model.public.current`.
+4. "How accurate it has been (last 7 days)" — three sentences computed from `metrics` at `window_days=7 ∧ slice='all'` for the serving tier: error vs persistence at `horizon=60` (`1 − brier_serving / brier_persistence`, bikes and docks, signed, so a worse model says "more error"); calibration gap from `ece` at `horizon=0` in points (×100, 1 decimal) for bikes and docks; `mae` (`target='cnt'`, `horizon=60`) in bikes. Each sentence is omitted when its inputs are missing; none at all → EmptyState "No scored forecasts yet for the model that is serving. …".
+5. `ReliabilityChart` for the serving tier only (`slice='all'`), with the `Bikes | Docks` toggle; omitted when the serving tier has no rows.
+6. Explainer ("Three tiers, always compared") and the footnote.
+
+**Operator view** (`viewer.is_admin === true`; `DetailedModelView`) — everything below, as before:
 1. **Intro** (h1 "How good are the forecasts?", display) + one paragraph: "Every forecast DockCast shows is scored against what actually happened. This page is generated from those scores. Nothing is hand-picked." 
 2. **`ModelSummary`** — a 2×3 fact grid (not cards: label over value, hairline rules between cells): `Serving now` → tier label (§4.2 mapping) ; `Active learned model` → `#<id> · trained for <trained_for_date>` or "none yet"; `Data since` → `data_since` as `d MMM yyyy` or "—"; `Collector uptime (7 d)` → `<uptime_7d_pct>%` or "—"; `Last forecast run` → relative; `Stations` → `n_stations_active`.
 3. **Explainer** ("Three tiers, always compared"): three short definitions — Persistence: "assumes nothing changes"; Flow model (`bd_cal`): "a queue model fed by a year of trip history and the weather"; Learned model (`gbm_active`): "a gradient-boosted model trained on our own snapshots; serves only if it beats the flow model on held-out days"; plus "Shadow" note.

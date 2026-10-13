@@ -20,6 +20,8 @@ export const userResponseSchema = z.object({
     id: z.string().uuid(),
     email: z.string().email(),
     created_at: z.string().datetime({ offset: true }),
+    /** The email is in the deployment's `ADMIN_EMAILS`: the operator view of `/model` (docs/api.md §4). */
+    is_admin: z.boolean(),
   }),
 });
 export type UserResponse = z.infer<typeof userResponseSchema>;
