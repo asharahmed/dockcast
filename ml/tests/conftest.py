@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import random
+import time
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -39,15 +40,37 @@ def db_conn() -> Iterator[psycopg.Connection]:
     if not database_url:
         pytest.skip("DATABASE_URL_TEST not set")
 
-    conn = psycopg.connect(database_url, autocommit=True)
+    conn = _connect_with_fresh_schema(database_url)
     try:
         with conn.cursor() as cur:
-            cur.execute("DROP SCHEMA public CASCADE; CREATE SCHEMA public;")
             for migration_file in sorted(MIGRATIONS_DIR.glob("*.sql")):
                 cur.execute(migration_file.read_text())
         yield conn
     finally:
         conn.close()
+
+
+def _connect_with_fresh_schema(database_url: str, attempts: int = 5) -> psycopg.Connection:
+    """Connect and reset the public schema, retrying when Postgres aborts the DROP as a deadlock.
+
+    `DROP SCHEMA public CASCADE` takes exclusive locks on every hypertable while TimescaleDB
+    background workers (the policy jobs the migrations create, plus the built-in telemetry and
+    job-history jobs) hold catalog locks and want share locks on those same tables. Postgres
+    resolves the cycle by aborting one side, and in CI it sometimes picks us. The worker finishes
+    within moments, so a short wait and a fresh connection is all the retry needs.
+    """
+    for attempt in range(1, attempts + 1):
+        conn = psycopg.connect(database_url, autocommit=True)
+        try:
+            with conn.cursor() as cur:
+                cur.execute("DROP SCHEMA public CASCADE; CREATE SCHEMA public;")
+            return conn
+        except psycopg.errors.DeadlockDetected:
+            conn.close()
+            if attempt == attempts:
+                raise
+            time.sleep(0.5 * attempt)
+    raise AssertionError("unreachable")
 
 
 @pytest.fixture
