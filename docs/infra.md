@@ -685,26 +685,31 @@ then waits for the api to report healthy. Data volumes are preserved. The server
 `GHCR_OWNER=asharahmed` so pulls resolve to the published images; `deploy-homeserver.sh` (build
 on the server) still works for ad-hoc deploys.
 
-To switch it on (one-time):
+In place since 2026-10-13 (first automated rollout: deploy run 38340838153, attempt 2):
 
-1. Create a deploy key and put its public half in the server's admin key file (admins' keys are
-   read from `C:\ProgramData\ssh\administrators_authorized_keys`, not from `~/.ssh`):
-   ```sh
-   ssh-keygen -t ed25519 -N '' -C dockcast-deploy@github-actions -f ~/.ssh/dockcast-deploy
-   ssh <user>@<server> "Add-Content -Path C:\ProgramData\ssh\administrators_authorized_keys -Value '$(cat ~/.ssh/dockcast-deploy.pub)'"
-   gh secret set HOMESERVER_SSH_KEY < ~/.ssh/dockcast-deploy
-   gh secret set HOMESERVER_HOST --body <server tailscale ip>
-   gh secret set HOMESERVER_USER --body <user>
-   ```
-2. Tailscale admin console → Access controls: define the tag and allow it to reach the server's
-   ssh port (the second rule is only needed if the policy is not the default allow-all):
-   ```json
-   "tagOwners": { "tag:ci": ["autogroup:admin"] },
-   "acls": [ { "action": "accept", "src": ["tag:ci"], "dst": ["<server tailscale ip>:22"] } ]
-   ```
-3. Settings → OAuth clients → Generate: scope **Auth Keys** (write), tag `tag:ci`. Then
-   `gh secret set TS_OAUTH_CLIENT_ID` and `gh secret set TS_OAUTH_SECRET` with the ID and secret.
-4. `gh variable set DEPLOY_TARGET --body homeserver`.
+- Server: a dedicated ed25519 deploy key (comment `dockcast-deploy@github-actions`) in
+  `C:\ProgramData\ssh\administrators_authorized_keys` (admins' keys are read from there, not
+  from `~/.ssh`), and `GHCR_OWNER=asharahmed` in `infra\.env`.
+- Tailscale: tag `tag:ci` (owner `autogroup:admin`) and the grant
+  `{"src": ["tag:ci"], "dst": ["asharpc"], "ip": ["tcp:22"]}` in the policy's `grants` (the policy is
+  default-deny; the runner is an ephemeral Linux node, so no posture condition). An OAuth client
+  under Settings → **Trust credentials** (the page formerly called OAuth clients) with scope
+  Auth Keys · Write and tag `tag:ci`.
+- Repository: secrets `HOMESERVER_SSH_KEY`, `HOMESERVER_HOST`, `HOMESERVER_USER`,
+  `TS_OAUTH_CLIENT_ID`, `TS_OAUTH_SECRET`; variable `DEPLOY_TARGET=homeserver`.
+
+To recreate any of it:
+
+```sh
+ssh-keygen -t ed25519 -N '' -C dockcast-deploy@github-actions -f ~/.ssh/dockcast-deploy
+ssh <user>@<server> "Add-Content -Path C:\ProgramData\ssh\administrators_authorized_keys -Value '$(cat ~/.ssh/dockcast-deploy.pub)'"
+gh secret set HOMESERVER_SSH_KEY < ~/.ssh/dockcast-deploy
+gh secret set HOMESERVER_HOST --body <server tailscale ip>
+gh secret set HOMESERVER_USER --body <user>
+gh secret set TS_OAUTH_CLIENT_ID   # from the trust credential
+gh secret set TS_OAUTH_SECRET
+gh variable set DEPLOY_TARGET --body homeserver
+```
 
 From then on every green push to `main` is live on the home server a few minutes later. The
 ephemeral runner node is removed from the tailnet when the job ends.
