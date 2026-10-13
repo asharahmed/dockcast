@@ -42,6 +42,7 @@ export const COPY = {
     healthOk: 'API healthy',
     healthDown: 'API unreachable',
     footerTagline: 'Bike-share forecasts from open data.',
+    privacy: 'Privacy',
   },
   offline: "You're offline. Showing the last data we had.",
   pwa: {
@@ -166,6 +167,7 @@ export const COPY = {
     unknown: "Can't tell yet",
   } satisfies Record<Verdict, string>,
   auth_pages: {
+    privacyNote: 'What DockCast stores about you and how to delete it:',
     signInTitle: 'Sign in',
     registerTitle: 'Create account',
     subtitle: 'Save commutes and get alerts before you leave.',
@@ -197,6 +199,14 @@ export const COPY = {
     linkOk: 'Connected.',
     linkConflict: 'That account already signs into a different DockCast account.',
     providerName: { google: 'Google', apple: 'Apple' } as Record<'google' | 'apple', string>,
+    deleteHeading: 'Delete account',
+    deleteBody:
+      'Removes your account, saved commutes, alert history, alert devices and linked sign-ins, and signs you out everywhere. This cannot be undone.',
+    deleteButton: 'Delete my account',
+    deleteConfirm: 'Delete your account and everything in it?',
+    deleteConfirmLabel: 'Delete',
+    deletedToast: 'Your account has been deleted.',
+    deleteErrorToast: "Couldn't delete your account. Try again.",
   },
   about: {
     title: 'About DockCast',

@@ -26,6 +26,7 @@ const MapPage = lazy(() => import('./routes/MapPage.js'));
 const StationPage = lazy(() => import('./routes/StationPage.js'));
 const ModelPage = lazy(() => import('./routes/ModelPage.js'));
 const AccountPage = lazy(() => import('./routes/AccountPage.js'));
+const PrivacyPage = lazy(() => import('./routes/PrivacyPage.js'));
 
 /** Auth guard for `/commutes`. ui-spec.md §4. */
 function RequireAuth({ children }: { children: ReactNode }) {
@@ -124,6 +125,7 @@ export function App() {
               <Route path="/login" element={<LoginPage />} />
               <Route path="/register" element={<RegisterPage />} />
               <Route path="/about" element={<AboutPage />} />
+              <Route path="/privacy" element={<PrivacyPage />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>

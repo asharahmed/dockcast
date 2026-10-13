@@ -151,6 +151,11 @@ export const handlers = [
 
   http.delete('/api/v1/commutes/:id', () => new HttpResponse(null, { status: 204 })),
 
+  http.delete('/api/v1/auth/account', () => {
+    signedIn = false;
+    return new HttpResponse(null, { status: 204 });
+  }),
+
   http.get('/api/v1/push/vapid-public-key', () => HttpResponse.json(vapidKeyResponseFixture)),
 
   http.post('/api/v1/push/subscriptions', () =>

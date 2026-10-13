@@ -7,10 +7,18 @@
  * for exchange errors).
  */
 import { useState } from 'react';
-import { useSearchParams } from 'react-router';
+import { useNavigate, useSearchParams } from 'react-router';
 import { Icon } from '../components/ui/Icon.js';
 import { InlineConfirm } from '../components/ui/InlineConfirm.js';
-import { useMe, useAuthProviders, useAuthIdentities, useUnlinkIdentity } from '../api/queries.js';
+import {
+  useMe,
+  useAuthProviders,
+  useAuthIdentities,
+  useUnlinkIdentity,
+  useDeleteAccount,
+} from '../api/queries.js';
+import { Button } from '../components/ui/Button.js';
+import { useToast } from '../components/shell/Toasts.js';
 import { COPY } from '../lib/constants.js';
 import { useDocumentTitle } from '../hooks/useDocumentTitle.js';
 
@@ -24,6 +32,10 @@ export default function AccountPage() {
   const { data: providers } = useAuthProviders();
   const { data: identities } = useAuthIdentities();
   const unlink = useUnlinkIdentity();
+  const deleteAccount = useDeleteAccount();
+  const navigate = useNavigate();
+  const addToast = useToast();
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   const [confirming, setConfirming] = useState<ProviderKey | null>(null);
   const link = searchParams.get('link');
@@ -110,6 +122,37 @@ export default function AccountPage() {
           </li>
           {PROVIDERS.map(row)}
         </ul>
+      </section>
+
+      <section className="flex flex-col gap-3 border-t border-rule pt-[var(--sp-6)]">
+        <h2 className="text-[length:var(--fs-lg)]">{COPY.account.deleteHeading}</h2>
+        <p className="text-[length:var(--fs-sm)] text-ink-2">{COPY.account.deleteBody}</p>
+        {confirmingDelete ? (
+          <InlineConfirm
+            message={COPY.account.deleteConfirm}
+            confirmLabel={COPY.account.deleteConfirmLabel}
+            danger
+            onCancel={() => setConfirmingDelete(false)}
+            onConfirm={() => {
+              deleteAccount.mutate(undefined, {
+                onSuccess: () => {
+                  addToast(COPY.account.deletedToast, 'good');
+                  navigate('/', { replace: true });
+                },
+                onError: () => {
+                  setConfirmingDelete(false);
+                  addToast(COPY.account.deleteErrorToast, 'critical');
+                },
+              });
+            }}
+          />
+        ) : (
+          <div>
+            <Button type="button" variant="secondary" onClick={() => setConfirmingDelete(true)}>
+              {COPY.account.deleteButton}
+            </Button>
+          </div>
+        )}
       </section>
     </div>
   );

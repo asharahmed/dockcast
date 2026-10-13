@@ -44,6 +44,11 @@ export function createApp(deps: AppDeps): Express {
       // Reuse the id `requestId` (mounted above) already assigned, rather than
       // letting pino-http generate its own.
       genReqId: (req) => req.id,
+      // Never write session tokens to the logs (the default serializer logs every header).
+      redact: {
+        paths: ['req.headers.cookie', 'res.headers["set-cookie"]', 'req.headers.authorization'],
+        censor: '[redacted]',
+      },
     }),
   );
   // Defaults restrict connect-src/img-src/worker-src to 'self', which blocks MapLibre's

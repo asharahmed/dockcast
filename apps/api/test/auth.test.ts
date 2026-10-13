@@ -152,3 +152,51 @@ describe('auth: rate limiting (isolated app instance)', () => {
     expect((last.body as { error: { code: string } }).error.code).toBe('rate_limited');
   }, 30_000);
 });
+
+// Its own app instance: the auth endpoints share a 10-per-15-minutes rate limit per IP.
+describe('auth: DELETE /auth/account', () => {
+  let ctx: TestContext;
+
+  beforeAll(async () => {
+    ctx = await setupTestApp();
+  }, 60_000);
+
+  afterAll(async () => {
+    await ctx.teardown();
+  });
+
+
+  it('DELETE /auth/account: removes the user, their commutes, devices and every session', async () => {
+    const email = 'leaving@example.com';
+    const phone = request.agent(ctx.app);
+    const laptop = request.agent(ctx.app);
+    await phone.post('/api/v1/auth/register').set(FETCH_HEADER).send({ email, password: 'goodbye-password-1' });
+    await laptop.post('/api/v1/auth/login').set(FETCH_HEADER).send({ email, password: 'goodbye-password-1' });
+    const user = await ctx.pool.query<{ id: string }>('SELECT id FROM users WHERE email = $1', [email]);
+    const userId = user.rows[0]!.id;
+    await ctx.pool.query(
+      `INSERT INTO push_subscriptions (user_id, endpoint, p256dh, auth) VALUES ($1, 'https://push.example/leaving', 'k', 'a')`,
+      [userId],
+    );
+
+    const res = await phone.delete('/api/v1/auth/account').set(FETCH_HEADER);
+    expect(res.status).toBe(204);
+    expect(res.headers['set-cookie']?.[0]).toMatch(/^dockcast\.sid=;/);
+
+    expect((await phone.get('/api/v1/auth/me')).status).toBe(401);
+    // The other device's session is gone too.
+    expect((await laptop.get('/api/v1/auth/me')).status).toBe(401);
+    const left = await ctx.pool.query(
+      `SELECT (SELECT count(*) FROM users WHERE id = $1::uuid)::int AS users,
+              (SELECT count(*) FROM push_subscriptions WHERE user_id = $1::uuid)::int AS devices,
+              (SELECT count(*) FROM "session" WHERE sess->>'userId' = $1::text)::int AS sessions`,
+      [userId],
+    );
+    expect(left.rows[0]).toEqual({ users: 0, devices: 0, sessions: 0 });
+  });
+
+  it('DELETE /auth/account: 401 when signed out, 403 without the fetch header', async () => {
+    expect((await request(ctx.app).delete('/api/v1/auth/account').set(FETCH_HEADER)).status).toBe(401);
+    expect((await request(ctx.app).delete('/api/v1/auth/account')).status).toBe(403);
+  });
+});

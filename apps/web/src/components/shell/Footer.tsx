@@ -2,6 +2,7 @@
  * Site footer (non-map pages): tagline, theme control, health dot.
  * ui-spec.md §4.0.
  */
+import { Link } from 'react-router';
 import { useTheme } from '../../hooks/useTheme.js';
 import { useHealth } from '../../api/queries.js';
 import { SegmentedControl } from '../ui/SegmentedControl.js';
@@ -14,7 +15,12 @@ export function Footer() {
 
   return (
     <footer className="flex flex-col gap-4 border-t border-rule px-[var(--gutter)] py-[var(--sp-5)] sm:flex-row sm:items-center sm:justify-between">
-      <p className="text-[length:var(--fs-sm)] text-ink-2">{COPY.shell.footerTagline}</p>
+      <p className="flex flex-wrap items-center gap-x-4 text-[length:var(--fs-sm)] text-ink-2">
+        <span>{COPY.shell.footerTagline}</span>
+        <Link to="/privacy" className="inline-flex min-h-11 items-center underline underline-offset-4 hover:text-ink">
+          {COPY.shell.privacy}
+        </Link>
+      </p>
       <div className="flex items-center gap-4">
         <SegmentedControl
           ariaLabel="Theme"

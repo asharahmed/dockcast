@@ -23,7 +23,13 @@ import { parseBody } from '../lib/validate.js';
 import { createRateLimiter } from '../middleware/rateLimit.js';
 import { requireAuth } from '../middleware/requireAuth.js';
 import { regenerateSession, destroySession } from '../lib/sessionAsync.js';
-import { createUser, findUserByEmailCI, findUserById, touchLastLogin } from '../services/users.queries.js';
+import {
+  createUser,
+  deleteUserAndSessions,
+  findUserByEmailCI,
+  findUserById,
+  touchLastLogin,
+} from '../services/users.queries.js';
 import type { UserRow } from '../services/users.queries.js';
 import {
   findIdentityUserId,
@@ -91,6 +97,16 @@ export function authRouter(deps: RouteDeps): Router {
 
   router.post('/auth/logout', async (req, res) => {
     await destroySession(req);
+    res.clearCookie('dockcast.sid');
+    res.status(204).end();
+  });
+
+  // Self-serve account deletion (docs/api.md §5, the /privacy page): removes the user, every
+  // commute, push device, linked identity and session, then clears this browser's cookie.
+  router.delete('/auth/account', requireAuth, async (req, res) => {
+    await deleteUserAndSessions(deps.pool, req.session.userId as string);
+    // The session row is already gone; destroying the in-memory session can't fail usefully.
+    await destroySession(req).catch(() => undefined);
     res.clearCookie('dockcast.sid');
     res.status(204).end();
   });

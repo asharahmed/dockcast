@@ -155,7 +155,8 @@ Body schemas: `RegisterRequest { email: string(email, ≤254), password: string(
 - `POST /auth/login` → 200 `UserResponse`; 401 `unauthorized` on bad credentials (same message for unknown email / wrong password).
 - `POST /auth/logout` → 204.
 - `GET /auth/me` → 200 `UserResponse` | 401.
-Passwords: argon2id (`argon2` defaults). Sessions regenerate on login. Rate limit per §0.
+- `DELETE /auth/account` (auth required) → 204, clears the session cookie. Deletes the user row; commutes (with their `alert_events`), push subscriptions, linked identities and pending link handshakes go with it (`ON DELETE CASCADE`), and every `session` row whose `sess.userId` is this user is deleted, signing out other devices. The `/privacy` page promises this.
+Passwords: argon2id (`argon2` defaults). Sessions regenerate on login. Rate limit per §0. Request logs redact `Cookie`, `Authorization` and `Set-Cookie`.
 
 ### OAuth sign-in (Google; provider-generic schema)
 

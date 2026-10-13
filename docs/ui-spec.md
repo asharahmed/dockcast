@@ -351,6 +351,12 @@ email in the header links here. Section "Sign-in methods" as a hairline-divided 
 `?link=ok` → good wash "Connected."; `?link=conflict` → critical wash "That account already signs
 into a different DockCast account."
 
+
+- **Delete account** (bottom section, separated by a hairline): one paragraph on what is removed, a secondary "Delete my account" button that turns into an `InlineConfirm` ("Delete your account and everything in it?" · Delete, danger). On success: `/auth/me` cached as signed-out, commutes and identities dropped from the cache, navigate to `/`, toast "Your account has been deleted."
+
+### 4.9 `/privacy` — Privacy policy (public)
+Static prose page (`PrivacyPage`, max 68 ch), dated by `PRIVACY_UPDATED`. It must describe what the code does: what is collected without and with an account, the session cookie and local-storage keys, on-device caches, the third parties that see data (Cloudflare, OpenFreeMap, Google/Apple sign-in, browser push services), storage location and retention, account deletion, and contact (GitHub issues, plus `VITE_CONTACT_EMAIL` when set). Any change to data handling updates this page and its date in the same change. Linked from the footer, the About page ("Your data") and under the sign-in/register forms.
+
 ## 5. Component contracts (props are exact)
 
 | Component | Props | Behaviour |

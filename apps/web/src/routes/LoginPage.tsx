@@ -90,6 +90,12 @@ export default function LoginPage() {
       <Link to="/register" className="inline-flex min-h-11 items-center text-[length:var(--fs-sm)] text-signal underline underline-offset-4">
         {COPY.auth_pages.toRegister}
       </Link>
+      <p className="text-[length:var(--fs-xs)] text-ink-3">
+        {COPY.auth_pages.privacyNote}{' '}
+        <Link to="/privacy" className="underline underline-offset-4 hover:text-ink-2">
+          {COPY.shell.privacy}
+        </Link>
+      </p>
     </div>
   );
 }

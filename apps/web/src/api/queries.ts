@@ -157,6 +157,20 @@ export function useUnlinkIdentity() {
   });
 }
 
+/** `DELETE /auth/account` — on success the session is gone; clear everything user-shaped. */
+export function useDeleteAccount() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => apiDelete<undefined>('/auth/account'),
+    onSuccess: () => {
+      queryClient.setQueryData(queryKeys.me, null);
+      queryClient.removeQueries({ queryKey: ['commutes'] });
+      queryClient.removeQueries({ queryKey: queryKeys.authIdentities });
+      void queryClient.invalidateQueries({ queryKey: ['model'] });
+    },
+  });
+}
+
 export function useLogin() {
   const queryClient = useQueryClient();
   return useMutation({

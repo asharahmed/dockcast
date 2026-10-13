@@ -2,7 +2,9 @@
 import { describe, expect, it, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { MemoryRouter } from 'react-router';
+import { MemoryRouter, Route, Routes } from 'react-router';
+import { userEvent } from '@testing-library/user-event';
+import { ToastProvider } from '../components/shell/Toasts.js';
 import { http, HttpResponse } from 'msw';
 import { server } from '../mocks/server.js';
 import { COPY } from '../lib/constants.js';
@@ -12,9 +14,14 @@ function renderPage(route = '/account') {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={queryClient}>
-      <MemoryRouter initialEntries={[route]}>
-        <AccountPage />
-      </MemoryRouter>
+      <ToastProvider>
+        <MemoryRouter initialEntries={[route]}>
+          <Routes>
+            <Route path="/account" element={<AccountPage />} />
+            <Route path="/" element={<p>map home</p>} />
+          </Routes>
+        </MemoryRouter>
+      </ToastProvider>
     </QueryClientProvider>,
   );
 }
@@ -32,6 +39,29 @@ beforeEach(() => {
 });
 
 describe('AccountPage', () => {
+  it('deletes the account only after confirming, then returns to the map', async () => {
+    const user = userEvent.setup();
+    let deleted = 0;
+    server.use(
+      http.delete('/api/v1/auth/account', () => {
+        deleted += 1;
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+    renderPage();
+    await user.click(await screen.findByRole('button', { name: COPY.account.deleteButton }));
+    expect(deleted).toBe(0);
+    // Cancel backs out without calling the api.
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(deleted).toBe(0);
+
+    await user.click(screen.getByRole('button', { name: COPY.account.deleteButton }));
+    await user.click(screen.getByRole('button', { name: COPY.account.deleteConfirmLabel }));
+    expect(await screen.findByText('map home')).toBeInTheDocument();
+    expect(deleted).toBe(1);
+    expect(screen.getByText(COPY.account.deletedToast)).toBeInTheDocument();
+  });
+
   it('lists password state and the connected Google identity with a disconnect control', async () => {
     renderPage();
     expect(await screen.findByText(COPY.account.password)).toBeInTheDocument();

@@ -12,8 +12,8 @@ import { PublicModelView } from '../components/model/PublicModelView.js';
 import { EmptyState } from '../components/ui/EmptyState.js';
 import { Skeleton } from '../components/ui/Skeleton.js';
 import { COPY } from '../lib/constants.js';
+import { REPO_URL } from '../lib/site.js';
 
-const REPO_URL = (import.meta.env.VITE_REPO_URL as string | undefined) ?? '';
 
 export default function ModelPage() {
   useDocumentTitle('Model quality · DockCast');

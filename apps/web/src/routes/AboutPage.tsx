@@ -9,10 +9,10 @@
  */
 import { Link } from 'react-router';
 import { COPY } from '../lib/constants.js';
+import { REPO_URL } from '../lib/site.js';
 import { useDocumentTitle } from '../hooks/useDocumentTitle.js';
 import { InstallCard } from '../components/shell/InstallCard.js';
 
-const REPO_URL = (import.meta.env.VITE_REPO_URL as string | undefined) ?? '';
 
 export default function AboutPage() {
   useDocumentTitle('About · DockCast');
@@ -61,6 +61,18 @@ export default function AboutPage() {
         <p className="text-ink-2">
           No large language models are involved anywhere. Forecasts are computed by our own models
           from open data. They will be wrong for parades, breakdowns and rebalancing vans.
+        </p>
+      </section>
+
+      <section className="flex flex-col gap-3">
+        <h2 className="text-[length:var(--fs-lg)]">Your data</h2>
+        <p className="text-ink-2">
+          The map works without an account. If you make one, DockCast keeps your email and saved
+          commutes, never sells anything, and lets you delete it all from your account page. The{' '}
+          <Link to="/privacy" className="text-signal underline underline-offset-4">
+            privacy policy
+          </Link>{' '}
+          has the details.
         </p>
       </section>
 

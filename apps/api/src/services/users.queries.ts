@@ -46,3 +46,26 @@ export async function createUser(
 export async function touchLastLogin(pool: Pool, userId: string, at: Date): Promise<void> {
   await none(pool, `UPDATE users SET last_login_at = $2 WHERE id = $1`, [userId, at]);
 }
+
+/**
+ * Deletes the account and everything hanging off it: commutes (and their alert history),
+ * push subscriptions, linked Google/Apple identities and pending link handshakes all
+ * reference `users` with ON DELETE CASCADE. Sessions are keyed by sid, not user, so every
+ * session that belongs to this user (other devices included) is removed explicitly.
+ * Returns whether a user row was deleted.
+ */
+export async function deleteUserAndSessions(pool: Pool, userId: string): Promise<boolean> {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query(`DELETE FROM "session" WHERE sess->>'userId' = $1`, [userId]);
+    const result = await client.query(`DELETE FROM users WHERE id = $1`, [userId]);
+    await client.query('COMMIT');
+    return (result.rowCount ?? 0) > 0;
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+}
