@@ -3,6 +3,7 @@
  * ui-spec.md §4.4 `PushSetup`.
  */
 import { useCallback, useEffect, useState } from 'react';
+import { Link } from 'react-router';
 import { Icon } from '../ui/Icon.js';
 import { Button } from '../ui/Button.js';
 import {
@@ -14,6 +15,7 @@ import {
 import { useVapidKey, useSubscribePush, useUnsubscribePush, useTestPush } from '../../api/queries.js';
 import { useToast } from '../shell/Toasts.js';
 import { COPY } from '../../lib/constants.js';
+import { isIOS, isStandalone } from '../../lib/install.js';
 
 type UiState = 'checking' | 'unsupported' | 'denied' | 'default' | 'subscribed';
 
@@ -90,12 +92,27 @@ export function PushSetup() {
 
   return (
     <div className="flex flex-col gap-3 rounded-[var(--r-2)] border border-rule bg-surface p-[var(--sp-4)]">
-      {state === 'unsupported' && (
-        <p className="flex items-center gap-2 text-[length:var(--fs-sm)] text-ink-2">
-          <Icon name="bell-off" size={18} />
-          {COPY.commutes.push.unsupported}
-        </p>
-      )}
+      {state === 'unsupported' &&
+        // iOS Safari has no PushManager until DockCast runs as a Home Screen app.
+        (isIOS() && !isStandalone() ? (
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="flex items-center gap-2 text-[length:var(--fs-sm)] text-ink-2">
+              <Icon name="bell-off" size={18} />
+              {COPY.pwa.iosPushHint}
+            </p>
+            <Link
+              to="/about#install"
+              className="inline-flex min-h-11 items-center text-[length:var(--fs-sm)] font-medium text-signal underline underline-offset-4"
+            >
+              {COPY.pwa.iosPushHowTo}
+            </Link>
+          </div>
+        ) : (
+          <p className="flex items-center gap-2 text-[length:var(--fs-sm)] text-ink-2">
+            <Icon name="bell-off" size={18} />
+            {COPY.commutes.push.unsupported}
+          </p>
+        ))}
 
       {state === 'denied' && (
         <p className="flex items-center gap-2 text-[length:var(--fs-sm)] text-ink-2">

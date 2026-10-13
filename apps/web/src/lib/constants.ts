@@ -39,6 +39,22 @@ export const COPY = {
     footerTagline: 'Bike-share forecasts from open data.',
   },
   offline: "You're offline. Showing the last data we had.",
+  pwa: {
+    updateReady: 'A new version of DockCast is ready.',
+    updateReload: 'Reload',
+    updateLater: 'Later',
+    install: {
+      heading: 'Get the app',
+      body: 'Install DockCast for a full-screen app on your home screen that opens straight to the map and keeps working with the last data it had when you lose signal.',
+      button: 'Install DockCast',
+      iosLead: 'On iPhone or iPad, in Safari:',
+      iosSteps: ['Tap the Share button', 'Choose “Add to Home Screen”', 'Tap Add'],
+      installed: 'DockCast is installed on this device.',
+    },
+    // iOS only delivers web push to apps added to the Home Screen (Safari 16.4+).
+    iosPushHint: 'To get alerts on iPhone, add DockCast to your Home Screen first, then open it from there.',
+    iosPushHowTo: 'How to install',
+  },
   notFound: {
     title: 'Nothing docked here.',
     body: "That page doesn't exist.",

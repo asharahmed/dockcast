@@ -400,16 +400,50 @@ async function request<T>(method, path, body?, schema?: ZodType<T>): Promise<T>
 
 ---------------------------------------------------------------------------
 
-## 8. Service worker (`public/sw.js`, plain JS, no bundler)
-```js
-self.addEventListener('install', e => self.skipWaiting());
-self.addEventListener('activate', e => e.waitUntil(self.clients.claim()));
-self.addEventListener('push', e => { const d = e.data ? e.data.json() : {};
-  e.waitUntil(self.registration.showNotification(d.title || 'DockCast', { body: d.body || '', tag: d.tag, data: { url: d.url || '/' }, icon: '/icons/icon-192.png', badge: '/icons/icon-192.png', renotify: !!d.tag })); });
-self.addEventListener('notificationclick', e => { e.notification.close(); const url = (e.notification.data && e.notification.data.url) || '/';
-  e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(cs => { const c = cs.find(x => 'focus' in x); if (c) { c.navigate(url); return c.focus(); } return self.clients.openWindow(url); })); });
-```
-No caching/precaching. Registration in `main.tsx`: `if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js')` after first paint (`requestIdleCallback` fallback `setTimeout 0`). `lib/push.ts` uses `navigator.serviceWorker.ready`.
+## 8. Service worker and PWA (`sw/sw.template.js` → `dist/sw.js`, plain JS, no bundler)
+
+DockCast is an installable PWA (revised 2026-10-13; it previously had a push-only worker
+with no caching).
+
+**Build.** `vite.config.ts`'s `dockcast-service-worker` plugin turns `apps/web/sw/sw.template.js`
+into `dist/sw.js`: `PRECACHE` = every emitted file except source maps, plus the listed `public/`
+icons and manifest; `VERSION` = a hash of that list and the template. Every build therefore ships a
+byte-different worker, which is what triggers the browser's update check. The build fails if a
+placeholder survives substitution.
+
+**Caching** (by request):
+
+| Request | Strategy | Cache |
+|---|---|---|
+| page navigation | network-first; offline → precached `index.html` | `dockcast-shell-<version>` (old versions deleted on activate) |
+| `/assets/*` (hashed) | cache-first | `dockcast-assets`, shared across versions (≤ 300) so older open tabs keep their lazy chunks |
+| public read API: `/cities`, `/cities/:slug/stations`, `/cities/:slug/map`, `/stations/:id`, `/stations/:id/history`, `/model` | network-first; a cached copy wins after 4 s or on failure | `dockcast-api` (≤ 150) |
+| `tiles.openfreemap.org` (style, tiles, glyphs, sprites) | stale-while-revalidate | `dockcast-tiles` (≤ 1500) |
+| other same-origin files (icons, manifest) | stale-while-revalidate | `dockcast-static` (≤ 60) |
+| auth, commutes, push, trip check, every non-GET | network only, never cached | — |
+
+Caps evict oldest-first. The offline banner ("Showing the last data we had") is now literally true.
+
+**Lifecycle.** No `skipWaiting` on install: a new worker waits. `lib/sw.ts` registers `/sw.js`
+after first paint (production builds only), checks for updates hourly and whenever the app returns
+to the foreground, and fires `dockcast:sw-update` when a worker is waiting behind an existing
+controller. `UpdateBanner` ("A new version of DockCast is ready." · Later · Reload) sends
+`SKIP_WAITING` and reloads once on `controllerchange`. The first install claims clients
+immediately (nothing to update from).
+
+**Push.** `push` and `notificationclick` handlers are unchanged in behaviour; notifications use
+`/icons/icon-192.png` and the monochrome `/icons/badge-96.png` badge. `lib/push.ts` still uses
+`navigator.serviceWorker.ready`.
+
+**Install.** `public/site.webmanifest`: `id`/`scope` `/`, `display: standalone`, any + maskable
+icons, shortcuts (Trip check, My commutes, Model), narrow and wide screenshots in
+`public/screenshots/`. `index.html` adds `mobile-web-app-capable`, the `apple-*` tags (status bar
+`default`, so the header never sits under it) and a `theme-color` per colour scheme; `lib/theme.ts`
+rewrites them when the user picks Light/Dark manually. `lib/install.ts` captures
+`beforeinstallprompt` before React mounts. `InstallCard` (About page) offers the browser's prompt,
+or on iOS the Share → Add to Home Screen steps, or "installed" when running standalone.
+`PushSetup` on iOS Safari outside the installed app explains that alerts need the Home Screen app
+(iOS only exposes Web Push there) and links to the install steps.
 
 ---------------------------------------------------------------------------
 

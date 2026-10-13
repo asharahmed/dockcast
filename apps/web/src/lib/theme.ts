@@ -28,6 +28,22 @@ export function getTheme(): ThemePreference {
   return 'system';
 }
 
+/** Header surface colours (styles/tokens.css `--surface`), used for the browser/app chrome. */
+const CHROME_COLOR = { light: '#fdfcfa', dark: '#1c1c1a' } as const;
+
+/**
+ * Keep `<meta name="theme-color">` (the status bar of an installed app, the address bar on
+ * Android) in step with a manual Light/Dark choice. index.html carries one tag per
+ * `prefers-color-scheme`; a manual choice overrides both, `'system'` restores them.
+ */
+export function syncThemeColor(theme: ThemePreference): void {
+  const tags = document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]');
+  for (const tag of tags) {
+    const scheme = tag.media.includes('dark') ? 'dark' : 'light';
+    tag.content = theme === 'system' ? CHROME_COLOR[scheme] : CHROME_COLOR[theme];
+  }
+}
+
 /** Persist `theme`, apply it to `<html data-theme>` immediately, and notify subscribers. */
 export function setTheme(theme: ThemePreference): void {
   if (theme === 'system') {
@@ -35,6 +51,7 @@ export function setTheme(theme: ThemePreference): void {
   } else {
     document.documentElement.dataset.theme = theme;
   }
+  syncThemeColor(theme);
   try {
     if (theme === 'system') localStorage.removeItem(STORAGE_KEY);
     else localStorage.setItem(STORAGE_KEY, theme);

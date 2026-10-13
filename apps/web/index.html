@@ -7,7 +7,13 @@
     <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
     <link rel="manifest" href="/site.webmanifest" />
-    <meta name="theme-color" content="#1c4f8f" />
+    <meta name="theme-color" content="#fdfcfa" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#1c1c1a" media="(prefers-color-scheme: dark)" />
+    <!-- Installed-app chrome (PWA). iOS reads the apple-* tags; "default" keeps the status
+         bar opaque so the header never sits under it. -->
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <title>DockCast</title>
     <meta name="description" content="Bike-share availability forecasts for when you'll actually be at the station. Will there be a bike? Will there be a dock? Calibrated odds, scored in public." />
     <meta name="application-name" content="DockCast" />

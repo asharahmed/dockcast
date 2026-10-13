@@ -6,7 +6,9 @@ import { createRoot } from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter } from 'react-router';
 import { App } from './App.js';
-import { getTheme } from './lib/theme.js';
+import { getTheme, syncThemeColor } from './lib/theme.js';
+import { captureInstallPrompt } from './lib/install.js';
+import { registerServiceWorker } from './lib/sw.js';
 import './styles/base.css';
 import './styles/charts.css';
 
@@ -18,6 +20,7 @@ import './styles/charts.css';
 // stored preference correctly, which is the substantive behaviour.
 const bootTheme = getTheme();
 if (bootTheme !== 'system') document.documentElement.dataset.theme = bootTheme;
+syncThemeColor(bootTheme);
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -36,17 +39,17 @@ async function enableMocking(): Promise<void> {
   await worker.start({ onUnhandledRequest: 'bypass' });
 }
 
+// Chromium fires `beforeinstallprompt` early; catch it before React mounts (lib/install.ts).
+captureInstallPrompt();
+
 /**
- * Registers `public/sw.js` after first paint. ui-spec.md §8: the file itself
- * ships in WP-10; registering unconditionally and swallowing the resulting
- * 404 is the "guard fetch failure gracefully" the spec asks for pre-WP-10.
+ * Registers the build-generated `/sw.js` after first paint (ui-spec.md §8). Production
+ * only: the dev server has no sw.js, and a caching worker would fight Vite's HMR.
  */
-function registerServiceWorker(): void {
-  if (!('serviceWorker' in navigator)) return;
+function startServiceWorker(): void {
+  if (!import.meta.env.PROD) return;
   const register = () => {
-    navigator.serviceWorker.register('/sw.js').catch(() => {
-      /* apps/web/public/sw.js doesn't exist until WP-10 */
-    });
+    registerServiceWorker().catch(() => undefined);
   };
   if (typeof window.requestIdleCallback === 'function') {
     window.requestIdleCallback(register);
@@ -71,7 +74,7 @@ function mount(): void {
     </StrictMode>,
   );
 
-  registerServiceWorker();
+  startServiceWorker();
 }
 
 enableMocking().then(mount).catch(mount);

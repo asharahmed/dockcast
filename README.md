@@ -23,6 +23,7 @@ No LLM or external inference service sits anywhere in the forecasting path. The 
 - **Saved commutes** with a live outlook chip and optional web-push alerts before you leave if the odds have dropped.
 - **Model transparency**: the public `/model` page explains which model is serving and how it has scored over the last 7 days, calibration included, with no hand-picked numbers. The operator (emails in `ADMIN_EMAILS`) sees the full picture: every tier, every slice, and the version history with each nightly gate result.
 - **Accounts** with email and password, Google, or Apple sign-in, and identity linking between them.
+- **Installable app**: add it to a phone's home screen for a full-screen app with shortcuts. It keeps showing the last map and station data it fetched when signal drops, and offers a reload when a new version ships. On iPhone, installing is what enables alerts.
 
 | Station page | Trip check |
 |---|---|

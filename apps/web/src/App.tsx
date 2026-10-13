@@ -6,6 +6,7 @@ import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from 'rea
 import { Navigate, Route, Routes, useLocation } from 'react-router';
 import { Header } from './components/shell/Header.js';
 import { Nav } from './components/shell/Nav.js';
+import { UpdateBanner } from './components/shell/UpdateBanner.js';
 import { Footer } from './components/shell/Footer.js';
 import { OfflineBanner } from './components/shell/OfflineBanner.js';
 import { ToastProvider } from './components/shell/Toasts.js';
@@ -129,6 +130,7 @@ export function App() {
         </main>
         {!isMapPage && <Footer />}
         <Nav />
+        <UpdateBanner />
       </div>
     </ToastProvider>
   );

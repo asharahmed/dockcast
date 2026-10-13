@@ -10,6 +10,7 @@
 import { Link } from 'react-router';
 import { COPY } from '../lib/constants.js';
 import { useDocumentTitle } from '../hooks/useDocumentTitle.js';
+import { InstallCard } from '../components/shell/InstallCard.js';
 
 const REPO_URL = (import.meta.env.VITE_REPO_URL as string | undefined) ?? '';
 
@@ -19,6 +20,8 @@ export default function AboutPage() {
   return (
     <div className="mx-auto flex max-w-[68ch] flex-col gap-[var(--sp-7)] px-[var(--gutter)] py-[var(--sp-8)]">
       <h1 className="text-[length:var(--fs-2xl)]">{COPY.about.title}</h1>
+
+      <InstallCard />
 
       <section className="flex flex-col gap-3">
         <h2 className="text-[length:var(--fs-lg)]">What this is</h2>

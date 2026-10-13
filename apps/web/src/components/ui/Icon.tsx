@@ -32,7 +32,10 @@ export type IconName =
   // aria-label='Swap stations'"). Added here, matching the set's existing
   // style (24 px grid, 1.75 px stroke, no icon libraries) rather than
   // repurposing an unrelated icon.
-  | 'swap';
+  | 'swap'
+  // PWA install UI: iOS's Share glyph (box with an up arrow) and a download-into-tray arrow.
+  | 'ios-share'
+  | 'install';
 
 export interface IconProps {
   name: IconName;
@@ -130,6 +133,18 @@ const PATHS: Record<IconName, ReactNode> = {
   ),
   chevron: <path d="M8 5l7 7-7 7" />,
   close: <path d="M6 6l12 12M18 6L6 18" />,
+  'ios-share': (
+    <>
+      <path d="M12 3v12M8 7l4-4 4 4" />
+      <path d="M8 10H6v10h12V10h-2" />
+    </>
+  ),
+  install: (
+    <>
+      <path d="M12 4v11M7.5 10.5L12 15l4.5-4.5" />
+      <path d="M5 16v4h14v-4" />
+    </>
+  ),
   external: (
     <>
       <path d="M9.5 5.5H18.5V14.5" />
