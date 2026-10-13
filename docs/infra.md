@@ -604,32 +604,44 @@ URL: http://<tailscale-ip>:8088 (Tailscale only, plain HTTP).
 
 ## 14. Public access through Cloudflare Tunnel (home server)
 
-The home server sits behind NAT and the domain's A record pointed at its Tailscale address, so
-`https://dockcast.aahmed.ca` only worked from inside the tailnet. A Cloudflare Tunnel makes the
-site public without a router port-forward and without the home IP ever appearing in DNS: the
-`cloudflared` container opens an outbound connection to Cloudflare's edge, and the public DNS
-record is a CNAME to the tunnel, which resolves to Cloudflare's own addresses.
+The home server sits behind NAT on a residential connection whose IP changes, and the domain's
+A record pointed at its Tailscale address, so `https://dockcast.aahmed.ca` only worked from inside
+the tailnet. A Cloudflare Tunnel makes the site public with nothing to maintain: the `cloudflared`
+container (compose profile `tunnel`) opens an outbound connection to Cloudflare's edge and simply
+reconnects after an IP change, there is no router port-forward and no DDNS, and the public DNS
+record is a CNAME to the tunnel, so the home IP never appears anywhere.
 
-1. Cloudflare dashboard → Zero Trust → Networks → Tunnels → **Create a tunnel** (Cloudflared
-   connector), name it `dockcast`, and copy the token from the install step (that is all the
-   token is; no local `cloudflared login` needed).
-2. In the tunnel's **Public Hostname** tab add `dockcast.aahmed.ca` → service type **HTTP** →
-   URL `api:3000`. Cloudflare creates a proxied CNAME for the hostname, so delete the existing
-   A record for `dockcast.aahmed.ca` first or the save fails. Pointing at `api:3000` rather than
-   `caddy:80` keeps `cloudflared` as the api's only proxy hop, so `TRUST_PROXY=1` stays correct
-   and `req.secure` follows the `X-Forwarded-Proto: https` the edge sends.
-3. On the server, in `infra/.env`: `COMPOSE_PROFILES=tunnel` and `CLOUDFLARE_TUNNEL_TOKEN=<token>`.
-   Leave `PUBLIC_BASE_URL=https://dockcast.aahmed.ca` (OAuth callbacks are unchanged). The Caddy
-   DNS-01 certificate and the plain-http Tailscale path on 8088 keep working for ops; public
-   traffic no longer touches Caddy.
-4. Redeploy (`infra/scripts/deploy-homeserver.sh`) and check `docker compose ps` shows
-   `cloudflared` up with "Registered tunnel connection" in its logs.
-5. Verify from a network that is **not** on the tailnet: `curl -s https://dockcast.aahmed.ca/api/v1/health`,
-   and `dig +short dockcast.aahmed.ca` should return Cloudflare addresses (104.x / 172.67.x), never the home IP.
+One script does the whole setup from a laptop. First create an API token at
+dash.cloudflare.com/profile/api-tokens ("Create Custom Token") with three permissions:
+**Account · Cloudflare Tunnel · Edit**, **Zone · Zone · Read**, **Zone · DNS · Edit** (zone
+resources: the domain's zone). Then:
 
-Optional edge settings under SSL/TLS: turn on **Always Use HTTPS** and **HSTS** (the api only
-emits HSTS when it sees https, which it now always does). The SSL mode is irrelevant for
-tunnelled hostnames. Outbound requirements on the host: TCP/UDP 7844 or TCP 443 to Cloudflare.
+```sh
+CLOUDFLARE_API_TOKEN=<that token> DOCKCAST_HOMESERVER=<user>@<tailscale-ip> \
+  infra/scripts/tunnel-setup.sh dockcast.aahmed.ca
+```
+
+It creates (or reuses) a remotely managed tunnel named `dockcast`, sets its ingress to
+`dockcast.aahmed.ca → http://api:3000`, replaces the hostname's A record with a proxied CNAME to
+`<tunnel-id>.cfargotunnel.com`, writes `COMPOSE_PROFILES=tunnel` and `CLOUDFLARE_TUNNEL_TOKEN`
+into `C:\dockcast\infra\.env` over ssh (rewriting the file LF-only), and runs
+`deploy-homeserver.sh`. Every step is idempotent, so re-running after a failure is fine. Without
+`DOCKCAST_HOMESERVER` it stops after the Cloudflare side and prints the two lines to add by hand.
+The API token is used only by the script; the tunnel's own run token is what lands in `.env`.
+
+Why `api:3000` and not `caddy:80`: it keeps `cloudflared` as the api's only proxy hop, so
+`TRUST_PROXY=1` still yields real client IPs for rate limiting, and `req.secure` follows the
+`X-Forwarded-Proto: https` the edge sends (secure session cookies, HSTS). `PUBLIC_BASE_URL`
+stays `https://dockcast.aahmed.ca`, so OAuth callbacks are unchanged. The Caddy DNS-01
+certificate and the plain-http Tailscale path on 8088 keep working for ops; public traffic no
+longer touches Caddy.
+
+Verify from a network that is **not** on the tailnet: `curl -s https://dockcast.aahmed.ca/api/v1/health`,
+and `dig +short dockcast.aahmed.ca` returns Cloudflare addresses (104.x / 172.67.x), never the home IP.
+`docker compose ps` shows `cloudflared` up with "Registered tunnel connection" in its logs.
+
+Optional edge settings under SSL/TLS: **Always Use HTTPS** and **HSTS**. The SSL mode is
+irrelevant for tunnelled hostnames. Outbound from the host: UDP 7844 (QUIC) or TCP 443 to Cloudflare.
 
 ## 15. One-shot install on a VPS (the easy path)
 

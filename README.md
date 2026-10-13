@@ -202,7 +202,7 @@ DOMAIN=dockcast.example.com CLOUDFLARE_API_TOKEN=... VAPID_SUBJECT=mailto:you@ex
   bash -c "$(curl -fsSL https://raw.githubusercontent.com/asharahmed/dockcast/main/infra/scripts/install.sh)"
 ```
 
-That installs Docker, clones the repo to `/opt/dockcast`, generates the secrets, pulls the images, starts the stack and runs the trip-history bootstrap. [`infra/cloud-init.yaml`](infra/cloud-init.yaml) does the same as server user data, so no login is needed. Point an A record at the host and the site is up; certificates come through Cloudflare DNS-01. GitHub Actions rebuilds the images on every green `main` build and, once the three `VPS_*` secrets exist, rolls the host over SSH. For a host behind NAT, the optional `tunnel` profile adds a Cloudflare Tunnel connector instead. Runbooks, secrets list and backup/restore are in [`docs/infra.md`](docs/infra.md) (§6, §8, §14, §15).
+That installs Docker, clones the repo to `/opt/dockcast`, generates the secrets, pulls the images, starts the stack and runs the trip-history bootstrap. [`infra/cloud-init.yaml`](infra/cloud-init.yaml) does the same as server user data, so no login is needed. Point an A record at the host and the site is up; certificates come through Cloudflare DNS-01. GitHub Actions rebuilds the images on every green `main` build and, once the three `VPS_*` secrets exist, rolls the host over SSH. For a home server behind NAT with a changing IP, `infra/scripts/tunnel-setup.sh` sets up a Cloudflare Tunnel instead: no port-forward, no DDNS, and the home IP never appears in DNS. Runbooks, secrets list and backup/restore are in [`docs/infra.md`](docs/infra.md) (§6, §8, §14, §15).
 
 ## Data sources and licences
 
