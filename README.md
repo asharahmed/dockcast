@@ -127,7 +127,7 @@ Then:
 pnpm db:migrate
 pnpm dev                        # api :3000, web :5173 (proxies /api to the api), collector
 
-cd ml && uv sync
+cd ml && uv sync --extra dev
 uv run --env-file ../.env python -m dockcast_ml bootstrap --city toronto --from 2026-03 --to 2026-03 --cache-dir .cache
 uv run --env-file ../.env python -m dockcast_ml predict --once
 ```
@@ -188,7 +188,7 @@ pnpm -r lint && pnpm -r typecheck && pnpm -r test
 cd ml && uv run ruff check . && uv run pytest -q
 ```
 
-Database-backed tests skip themselves when `DATABASE_URL_TEST` is unset. The `db-test` container has no volume, so every run starts from a clean server.
+The `dev` extra brings in ruff and pytest. Database-backed tests skip themselves when `DATABASE_URL_TEST` is unset. The `db-test` container has no volume, so every run starts from a clean server.
 
 CI runs lint, typecheck, build and both test suites against a TimescaleDB service on every push and pull request. Python tests marked `slow` are excluded by default.
 
