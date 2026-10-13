@@ -670,3 +670,41 @@ up to 6 GB on this size of host (`TRAIN_MEM_*` in the generated `.env`).
 
 Untested on a live VPS as of 2026-10-12: the script's env generation and idempotence were
 exercised in a dry run; the Docker install, pull, `up --wait` and bootstrap steps were not.
+
+## 16. Push-to-deploy for the home server (GitHub Actions over Tailscale)
+
+`deploy.yml` builds and pushes the four images on every green `main` build, then runs a rollout
+job chosen by the repository variable `DEPLOY_TARGET`: `vps` (ssh to `/opt/dockcast`, §15) or
+`homeserver`. With the variable unset both rollout jobs are skipped and the workflow still passes.
+
+The `homeserver` rollout joins the tailnet as an ephemeral `tag:ci` node, copies
+`infra/scripts/rollout-homeserver.ps1` to the server and runs it: the script downloads that
+commit's tarball from GitHub, refreshes `C:\dockcast` (compose file, Caddyfile, crontab, scripts;
+`infra\.env` is untouched), `docker compose pull`s the images just pushed and restarts the stack,
+then waits for the api to report healthy. Data volumes are preserved. The server's `.env` has
+`GHCR_OWNER=asharahmed` so pulls resolve to the published images; `deploy-homeserver.sh` (build
+on the server) still works for ad-hoc deploys.
+
+To switch it on (one-time):
+
+1. Create a deploy key and put its public half in the server's admin key file (admins' keys are
+   read from `C:\ProgramData\ssh\administrators_authorized_keys`, not from `~/.ssh`):
+   ```sh
+   ssh-keygen -t ed25519 -N '' -C dockcast-deploy@github-actions -f ~/.ssh/dockcast-deploy
+   ssh <user>@<server> "Add-Content -Path C:\ProgramData\ssh\administrators_authorized_keys -Value '$(cat ~/.ssh/dockcast-deploy.pub)'"
+   gh secret set HOMESERVER_SSH_KEY < ~/.ssh/dockcast-deploy
+   gh secret set HOMESERVER_HOST --body <server tailscale ip>
+   gh secret set HOMESERVER_USER --body <user>
+   ```
+2. Tailscale admin console → Access controls: define the tag and allow it to reach the server's
+   ssh port (the second rule is only needed if the policy is not the default allow-all):
+   ```json
+   "tagOwners": { "tag:ci": ["autogroup:admin"] },
+   "acls": [ { "action": "accept", "src": ["tag:ci"], "dst": ["<server tailscale ip>:22"] } ]
+   ```
+3. Settings → OAuth clients → Generate: scope **Auth Keys** (write), tag `tag:ci`. Then
+   `gh secret set TS_OAUTH_CLIENT_ID` and `gh secret set TS_OAUTH_SECRET` with the ID and secret.
+4. `gh variable set DEPLOY_TARGET --body homeserver`.
+
+From then on every green push to `main` is live on the home server a few minutes later. The
+ephemeral runner node is removed from the tailnet when the job ends.
