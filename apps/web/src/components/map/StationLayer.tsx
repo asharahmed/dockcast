@@ -12,6 +12,7 @@ import { useMapInstance } from './MapContext.js';
 import { mapProbAt, probStep, fmtPct, type Target } from '../../lib/prob.js';
 import { horizonDurationLabel, HORIZON_STOPS } from '../../lib/time.js';
 import type { StationListItem, MapStation } from '../../api/types.js';
+import { COPY } from '../../lib/constants.js';
 
 const SOURCE_ID = 'stations';
 const LAYER_ID = 'stations';
@@ -246,7 +247,7 @@ export function StationLayer({
       style={{ left: hover.x, top: hover.y, boxShadow: 'var(--shadow-panel)', maxWidth: 220 }}
     >
       <p className="font-medium">{props.name}</p>
-      <p className="text-ink-2">{`${props.b} bikes · ${props.d} docks`}</p>
+      <p className="text-ink-2">{COPY.map.stationCounts(props.b, props.d)}</p>
       <p className="text-ink-2">
         {props.step >= 0 ? `${fmtPct(props.p)} chance of a ${targetWord} ${when}` : 'No forecast'}
       </p>

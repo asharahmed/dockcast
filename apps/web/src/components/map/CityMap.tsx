@@ -65,15 +65,15 @@ export function CityMap({
       minZoom: 10,
       attributionControl: false,
     });
-    // Phones: the bottom sheet covers the lower edge of the map, so zoom/locate move
-    // to the top-right corner. The legend chip takes the top-left (MapPage).
-    const narrow = window.matchMedia('(max-width: 767.98px)').matches;
-    const controlCorner = narrow ? 'top-right' : 'bottom-right';
-    map.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-left');
-    map.addControl(new maplibregl.NavigationControl(), controlCorner);
+    // Corners (MapPage owns the rest): zoom/locate top-right on every screen; attribution
+    // bottom-right, clear of the desktop control panel (left) and lifted above the phone
+    // sheet's peek in base.css (OpenStreetMap's licence needs it visible). The legend is
+    // bottom-right above the attribution on desktop and a chip top-left on phones.
+    map.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-right');
+    map.addControl(new maplibregl.NavigationControl(), 'top-right');
     map.addControl(
       new maplibregl.GeolocateControl({ positionOptions: { enableHighAccuracy: true } }),
-      controlCorner,
+      'top-right',
     );
     map.on('load', () => {
       map.getCanvas().setAttribute('role', 'img');

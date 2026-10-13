@@ -194,6 +194,14 @@
   height: calc(100dvh - var(--header-h) - var(--tabbar-h));
 }
 
+/* Phones: the bottom sheet's peek (Sheet.tsx) covers the lower 104 px of the map, so the
+   attribution sits just above it. */
+@media (max-width: 767.98px) {
+  .dc-map-viewport .maplibregl-ctrl-bottom-right {
+    bottom: 104px;
+  }
+}
+
 /* MapLibre's zoom/locate buttons are 29 px; ui-spec.md §6 wants ≥ 44 px touch targets. */
 @media (pointer: coarse) {
   .maplibregl-ctrl.maplibregl-ctrl-group button {

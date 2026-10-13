@@ -211,7 +211,7 @@ export default function MapPage() {
               {controlPanel}
             </Sheet>
           </div>
-          <div className="pointer-events-auto mt-auto w-[280px]">
+          <div className="pointer-events-auto mb-8 mt-auto w-[280px]">
             {!listView && (
               <MapLegend
                 target={target}

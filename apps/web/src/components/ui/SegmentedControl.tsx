@@ -49,7 +49,7 @@ export function SegmentedControl<V extends string>({
     <div
       role="radiogroup"
       aria-label={ariaLabel}
-      className="inline-flex rounded-[var(--r-2)] border border-rule-strong bg-surface p-1"
+      className="inline-flex w-fit max-w-full self-start rounded-[var(--r-2)] border border-rule-strong bg-surface p-1"
     >
       {options.map((option, index) => {
         const selected = option.value === value;

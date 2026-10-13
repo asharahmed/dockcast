@@ -13,6 +13,7 @@
 import { useState, type FormEvent } from 'react';
 import { StationSearch } from '../map/StationSearch.js';
 import { Field } from '../ui/Field.js';
+import { RideMinutesInput } from '../ui/RideMinutesInput.js';
 import { Button } from '../ui/Button.js';
 import { DayPicker } from '../ui/DayPicker.js';
 import { Toggle } from '../ui/Toggle.js';
@@ -215,31 +216,19 @@ export function CommuteForm({
         hint={rideAuto ? COPY.trip.rideAutoHelper : undefined}
         error={errors.ride}
       >
-        <div className="flex items-center gap-2">
-          <input
-            type="number"
-            min={1}
-            max={180}
-            value={rideAuto ? (autoRide ?? '') : (rideValue ?? '')}
-            onChange={(event) => {
-              setRideAuto(false);
-              setRideValue(event.target.value === '' ? null : Number(event.target.value));
-            }}
-            className="min-h-11 w-24 rounded-[var(--r-1)] border border-rule-strong bg-surface px-3 py-2 text-ink"
-          />
-          {!rideAuto && (
-            <button
-              type="button"
-              onClick={() => {
-                setRideAuto(true);
-                setRideValue(null);
-              }}
-              className="text-[length:var(--fs-sm)] text-signal underline underline-offset-4"
-            >
-              {COPY.trip.rideReset}
-            </button>
-          )}
-        </div>
+        <RideMinutesInput
+          auto={rideAuto}
+          autoValue={autoRide}
+          value={rideValue}
+          onChange={(value) => {
+            setRideAuto(false);
+            setRideValue(value);
+          }}
+          onReset={() => {
+            setRideAuto(true);
+            setRideValue(null);
+          }}
+        />
       </Field>
 
       <Toggle checked={alertEnabled} onChange={setAlertEnabled} label={COPY.commutes.form.alertsLabel} />

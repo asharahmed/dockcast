@@ -44,6 +44,19 @@ async function selectStation(
 }
 
 describe('TripPlanner', () => {
+  it('labels the ride-time box itself, shows "auto" until stations are picked, then the estimate', async () => {
+    const user = userEvent.setup();
+    renderPlanner();
+    const ride = screen.getByRole('spinbutton', { name: 'Ride time' });
+    expect(ride).toHaveAttribute('placeholder', 'auto');
+    expect(ride).toHaveValue(null);
+    expect(ride).toHaveAccessibleDescription('Estimated at 12 km/h');
+
+    await selectStation(user, 'From', 'Union', 'Union Station');
+    await selectStation(user, 'To', 'Bay', 'Bay / College');
+    expect(Number((ride as HTMLInputElement).value)).toBeGreaterThan(0);
+  });
+
   it('shows a validation error on empty submit', async () => {
     const user = userEvent.setup();
     renderPlanner();

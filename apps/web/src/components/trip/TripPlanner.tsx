@@ -15,6 +15,7 @@ import { useState, type FormEvent } from 'react';
 import { useSearchParams } from 'react-router';
 import { StationSearch } from '../map/StationSearch.js';
 import { TimeInput } from '../ui/TimeInput.js';
+import { RideMinutesInput } from '../ui/RideMinutesInput.js';
 import { Field } from '../ui/Field.js';
 import { Button } from '../ui/Button.js';
 import { IconButton } from '../ui/IconButton.js';
@@ -231,31 +232,13 @@ export function TripPlanner({ stations, mapStations, cityTz, now, emptyHint }: T
             hint={draft.rideAuto ? COPY.trip.rideAutoHelper : undefined}
             error={errors.ride}
           >
-            <div className="flex items-center gap-2">
-              <input
-                type="number"
-                min={1}
-                max={180}
-                value={draft.rideAuto ? (autoRide ?? '') : (draft.rideValue ?? '')}
-                onChange={(event) =>
-                  setDraft((d) => ({
-                    ...d,
-                    rideAuto: false,
-                    rideValue: event.target.value === '' ? null : Number(event.target.value),
-                  }))
-                }
-                className="min-h-11 w-24 rounded-[var(--r-1)] border border-rule-strong bg-surface px-3 py-2 text-ink"
-              />
-              {!draft.rideAuto && (
-                <button
-                  type="button"
-                  onClick={() => setDraft((d) => ({ ...d, rideAuto: true, rideValue: null }))}
-                  className="text-[length:var(--fs-sm)] text-signal underline underline-offset-4"
-                >
-                  {COPY.trip.rideReset}
-                </button>
-              )}
-            </div>
+            <RideMinutesInput
+              auto={draft.rideAuto}
+              autoValue={autoRide}
+              value={draft.rideValue}
+              onChange={(rideValue) => setDraft((d) => ({ ...d, rideAuto: false, rideValue }))}
+              onReset={() => setDraft((d) => ({ ...d, rideAuto: true, rideValue: null }))}
+            />
           </Field>
 
           <Button type="submit" disabled={submitCooldown}>

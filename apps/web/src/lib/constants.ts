@@ -16,6 +16,11 @@ export {
 } from '@dockcast/shared';
 import type { Verdict } from '@dockcast/shared';
 
+/** "1 bike", "2 bikes", "0 docks": a count with its noun in the right number. */
+export function count(n: number, one: string, many = `${one}s`): string {
+  return `${n} ${n === 1 ? one : many}`;
+}
+
 export const COPY = {
   errors: {
     generic: 'Something went wrong. Try again.',
@@ -65,7 +70,7 @@ export const COPY = {
     link: 'Back to the map',
   },
   map: {
-    updated: (rel: string, n: number) => `Updated ${rel} · ${n} stations`,
+    updated: (rel: string, n: number) => `Updated ${rel} · ${count(n, 'station')}`,
     legendTitle: {
       bikes: (when: string) => `Chance of a bike ${when}`,
       docks: (when: string) => `Chance of an empty dock ${when}`,
@@ -86,9 +91,9 @@ export const COPY = {
     searchPlaceholder: 'Find a station…',
     searchLabel: 'Search stations',
     noMatch: (q: string) => `No station matches "${q}"`,
-    stationCounts: (b: number, d: number) => `${b} bikes · ${d} docks`,
+    stationCounts: (b: number, d: number) => `${count(b, 'bike')} · ${count(d, 'dock')}`,
     stationCountsWithCapacity: (b: number, d: number, c: number) =>
-      `${b} bikes · ${d} docks · ${c} capacity`,
+      `${count(b, 'bike')} · ${count(d, 'dock')} · ${c} capacity`,
     liveUpdated: (rel: string) => `Live · updated ${rel}`,
     notReporting: 'Not reporting',
     closeStation: 'Close station',
@@ -110,7 +115,7 @@ export const COPY = {
     showOnMap: 'Show on map',
     bikesNow: 'bikes now',
     docksNow: 'empty docks now',
-    ebikes: (n: number) => `${n} e-bikes`,
+    ebikes: (n: number) => count(n, 'e-bike'),
     liveReported: (rel: string) => `Live · reported ${rel}`,
     notReportingLastSeen: (rel: string) => `Not reporting · last seen ${rel}`,
     noCurrentData: "We haven't seen this station report yet.",
@@ -120,7 +125,7 @@ export const COPY = {
       bike: 'Bike',
       dock: 'Dock',
       expected: (n: number, range: string | null) =>
-        range ? `About ${n} bikes expected (range ${range})` : `About ${n} bikes expected`,
+        range ? `About ${count(n, 'bike')} expected (range ${range})` : `About ${count(n, 'bike')} expected`,
     },
     modelLine: (label: string) => `Model: ${label}`,
     howForecastsWork: 'How forecasts work →',
@@ -142,7 +147,7 @@ export const COPY = {
       bandLabel: '10–90% range',
       capacityLabel: 'capacity',
       nowLabel: 'now',
-      tooltipActual: (n: number) => `Actual: ${n} bikes`,
+      tooltipActual: (n: number) => `Actual: ${count(n, 'bike')}`,
       tooltipForecast: (exp: number, lo: number, hi: number) =>
         `Forecast: ~${exp} (${lo}–${hi})`,
       empty: 'No history yet. The chart fills in as the collector runs.',
@@ -208,6 +213,9 @@ export const COPY = {
     leaveInPastHelper: "That's earlier than now, so we'll use now.",
     rideAutoHelper: 'Estimated at 12 km/h',
     rideReset: 'Reset',
+    rideUnit: 'min',
+    // Shown in the empty box before stations are picked (the estimate needs both ends).
+    ridePlaceholder: 'auto',
     swapAriaLabel: 'Swap stations',
     validation: {
       chooseStation: 'Choose a station',
@@ -230,10 +238,10 @@ export const COPY = {
       origin: (time: string) => `a bike at ${time}`,
       dest: (time: string) => `an empty dock at ${time}`,
     },
-    nowMeta: (bikes: number, docks: number) => `Now: ${bikes} bikes · ${docks} docks`,
+    nowMeta: (bikes: number, docks: number) => `Now: ${count(bikes, 'bike')} · ${count(docks, 'dock')}`,
     notReporting: 'not reporting',
-    expectedThenBikes: (n: number) => `Expected then: ~${n} bikes`,
-    expectedThenDocks: (n: number) => `Expected then: ~${n} docks`,
+    expectedThenBikes: (n: number) => `Expected then: ~${count(n, 'bike')}`,
+    expectedThenDocks: (n: number) => `Expected then: ~${count(n, 'dock')}`,
     typicalLabel: (maxLead: number) => `Typical for this time · forecasts start ${maxLead} min ahead`,
     unavailableLabel: 'No forecast right now',
     alternatives: {

@@ -6,13 +6,23 @@ import { SegmentedControl } from './SegmentedControl.js';
 import { COPY } from '../../lib/constants.js';
 
 export interface TimeInputProps {
+  /** From `Field`: labels the time box (rendered in "At…" mode). */
+  id?: string;
+  'aria-describedby'?: string;
   value: string | null;
   onChange: (value: string | null) => void;
   mode: 'now' | 'at';
   onModeChange?: (mode: 'now' | 'at') => void;
 }
 
-export function TimeInput({ value, onChange, mode, onModeChange }: TimeInputProps) {
+export function TimeInput({
+  id,
+  'aria-describedby': describedBy,
+  value,
+  onChange,
+  mode,
+  onModeChange,
+}: TimeInputProps) {
   return (
     <div className="flex flex-col gap-2">
       <SegmentedControl
@@ -26,6 +36,8 @@ export function TimeInput({ value, onChange, mode, onModeChange }: TimeInputProp
       />
       {mode === 'at' && (
         <input
+          id={id}
+          aria-describedby={describedBy}
           type="time"
           value={value ?? ''}
           onChange={(event) => onChange(event.target.value || null)}

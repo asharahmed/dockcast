@@ -17,7 +17,7 @@ export function NeighborsList({ neighbors }: { neighbors: StationNeighbor[] }) {
             </Link>
             <span className="flex flex-col items-end whitespace-nowrap tabular-nums">
               <span className="text-ink-2">
-                {n.bikes === null || n.docks === null ? '—' : `${n.bikes} bikes · ${n.docks} docks`}
+                {n.bikes === null || n.docks === null ? '—' : COPY.map.stationCounts(n.bikes, n.docks)}
               </span>
               <span className="text-[length:var(--fs-xs)] text-ink-3">{`${Math.round(n.distance_m)} m away`}</span>
             </span>
