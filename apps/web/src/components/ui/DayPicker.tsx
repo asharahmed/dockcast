@@ -44,7 +44,7 @@ export function DayPicker({ value, onChange }: DayPickerProps) {
   }
 
   return (
-    <div role="group" aria-label="Days" className="flex flex-wrap gap-2">
+    <div role="group" aria-label="Days" className="grid max-w-[420px] grid-cols-7 gap-1.5">
       {DAYS.map((day, index) => {
         const selected = value.includes(day.value);
         return (
@@ -58,7 +58,7 @@ export function DayPicker({ value, onChange }: DayPickerProps) {
             aria-label={day.full}
             onClick={() => toggle(day.value)}
             onKeyDown={(event) => onKeyDown(event, index)}
-            className={`inline-flex min-h-11 min-w-11 items-center justify-center rounded-[var(--r-1)] text-[length:var(--fs-sm)] font-medium transition-colors duration-[var(--dur-state)] ${
+            className={`inline-flex min-h-11 items-center justify-center rounded-[var(--r-1)] text-[length:var(--fs-sm)] font-medium transition-colors duration-[var(--dur-state)] ${
               selected
                 ? 'bg-signal-wash text-signal'
                 : 'border border-rule-strong text-ink-2 hover:bg-surface-2'

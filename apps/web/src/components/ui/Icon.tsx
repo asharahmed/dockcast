@@ -35,7 +35,8 @@ export type IconName =
   | 'swap'
   // PWA install UI: iOS's Share glyph (box with an up arrow) and a download-into-tray arrow.
   | 'ios-share'
-  | 'install';
+  | 'install'
+  | 'plus';
 
 export interface IconProps {
   name: IconName;
@@ -139,6 +140,7 @@ const PATHS: Record<IconName, ReactNode> = {
       <path d="M8 10H6v10h12V10h-2" />
     </>
   ),
+  plus: <path d="M12 5v14M5 12h14" />,
   install: (
     <>
       <path d="M12 4v11M7.5 10.5L12 15l4.5-4.5" />

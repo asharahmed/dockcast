@@ -127,6 +127,13 @@
   :focus:not(:focus-visible) {
     outline: none;
   }
+
+  /* Headings that receive focus programmatically on route change (RouteAnnouncer, Sheet)
+     are not interactive; Chrome treats that focus as :focus-visible after a fresh load, so
+     the keyboard ring would frame the page title. */
+  [tabindex='-1']:focus {
+    outline: none;
+  }
 }
 
 .skip-link {

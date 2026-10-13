@@ -158,7 +158,7 @@ export default function CommutesPage() {
       <div className="flex items-center justify-between gap-4">
         <h1 className="text-[length:var(--fs-2xl)]">{COPY.commutes.title}</h1>
         <div className="hidden sm:block">
-          <Button type="button" icon="save" onClick={openNew}>
+          <Button type="button" icon="plus" onClick={openNew}>
             {COPY.commutes.newCommute}
           </Button>
         </div>
@@ -202,15 +202,18 @@ export default function CommutesPage() {
         />
       )}
 
-      <button
-        type="button"
-        onClick={openNew}
-        aria-label={COPY.commutes.newCommute}
-        className="fixed bottom-20 right-4 z-10 flex h-14 w-14 items-center justify-center rounded-full bg-signal text-signal-ink sm:hidden"
-        style={{ boxShadow: 'var(--shadow-panel)' }}
-      >
-        <Icon name="save" size={22} />
-      </button>
+      {/* Phone "new commute" button; hidden while the form is open, which it would cover. */}
+      {!formOpen && (
+        <button
+          type="button"
+          onClick={openNew}
+          aria-label={COPY.commutes.newCommute}
+          className="fixed bottom-[calc(var(--tabbar-h)+var(--sp-4))] right-4 z-10 flex h-14 w-14 items-center justify-center rounded-full bg-signal text-signal-ink sm:hidden"
+          style={{ boxShadow: 'var(--shadow-panel)' }}
+        >
+          <Icon name="plus" size={24} />
+        </button>
+      )}
     </div>
   );
 }

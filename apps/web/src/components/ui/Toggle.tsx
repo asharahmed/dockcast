@@ -10,7 +10,7 @@ export interface ToggleProps {
 
 export function Toggle({ checked, onChange, label }: ToggleProps) {
   return (
-    <label className="flex cursor-pointer items-center gap-3">
+    <label className="flex min-h-11 cursor-pointer items-center gap-3">
       <span className="text-[length:var(--fs-sm)] font-medium text-ink">{label}</span>
       <button
         type="button"
@@ -23,7 +23,7 @@ export function Toggle({ checked, onChange, label }: ToggleProps) {
       >
         <span
           aria-hidden="true"
-          className="absolute top-0.5 h-5 w-5 rounded-full bg-surface transition-transform duration-[var(--dur-state)]"
+          className="absolute left-0 top-0.5 h-5 w-5 rounded-full bg-surface transition-transform duration-[var(--dur-state)]"
           style={{ transform: checked ? 'translateX(22px)' : 'translateX(2px)' }}
         />
       </button>
