@@ -254,6 +254,7 @@ export const modelResponseFixture: ModelResponse = {
   active: { gbm: modelVersionSummaryFixture, bd: modelVersionSummaryFixture },
   metrics: [modelMetricRowFixture, modelMetricRowReliabilityFixture],
   versions: [modelVersionSummaryFixture],
+  viewer: { is_admin: true },
 };
 
 export const modelEvalRowFixture: ModelEvalRow = {
@@ -332,6 +333,7 @@ export const userResponseFixture: UserResponse = {
     id: '9c858f5e-3e1e-4a3c-8f0a-7b6a2b1e2b8a',
     email: 'rider@example.com',
     created_at: '2026-08-01T00:00:00Z',
+    is_admin: false,
   },
 };
 
