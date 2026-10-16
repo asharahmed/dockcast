@@ -10,7 +10,8 @@
  *                        lazy-load its chunks after a deploy removed them from the server
  *   public read API      network-first (4 s budget when a copy exists); offline → last copy
  *   map tiles/styles     stale-while-revalidate, capped
- *   icons, manifest…     stale-while-revalidate
+ *   web app manifest     network-first (it decides the installed app's icons)
+ *   icons, other files   stale-while-revalidate
  * Everything else (auth, commutes, push, trip check, any non-GET) goes straight to the
  * network and is never cached.
  *
@@ -82,6 +83,10 @@ self.addEventListener('fetch', (event) => {
       event.respondWith(cacheFirst(request, ASSET_CACHE));
     } else if (url.pathname.startsWith('/api/')) {
       if (CACHEABLE_API.test(url.pathname)) event.respondWith(networkFirst(request, API_CACHE));
+    } else if (url.pathname.endsWith('.webmanifest')) {
+      // The manifest decides the installed app's name and icons: always the server's copy
+      // when online (a stale one gave iOS an icon list it could not render).
+      event.respondWith(networkFirst(request, STATIC_CACHE));
     } else if (url.pathname !== '/sw.js') {
       event.respondWith(staleWhileRevalidate(request, STATIC_CACHE));
     }
