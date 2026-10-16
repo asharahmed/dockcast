@@ -10,8 +10,8 @@
  *                        lazy-load its chunks after a deploy removed them from the server
  *   public read API      network-first (4 s budget when a copy exists); offline → last copy
  *   map tiles/styles     stale-while-revalidate, capped
- *   web app manifest     network-first (it decides the installed app's icons)
- *   icons, other files   stale-while-revalidate
+ *   icons, manifest      not intercepted (the browser and iOS's icon builder fetch them)
+ *   other static files   stale-while-revalidate
  * Everything else (auth, commutes, push, trip check, any non-GET) goes straight to the
  * network and is never cached.
  *
@@ -33,6 +33,7 @@ const API_TIMEOUT_MS = 4000;
 /** Public, read-only endpoints worth showing from cache when offline (docs/api.md §1–4). */
 const CACHEABLE_API = /^\/api\/v1\/(cities(\/[^/]+\/(stations|map))?|stations\/\d+(\/history)?|model)$/;
 const TILE_HOSTS = new Set(['tiles.openfreemap.org']);
+const IS_ICON_OR_MANIFEST = /^\/(icons\/|apple-touch-icon|favicon\.|site\.webmanifest)/;
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -83,10 +84,11 @@ self.addEventListener('fetch', (event) => {
       event.respondWith(cacheFirst(request, ASSET_CACHE));
     } else if (url.pathname.startsWith('/api/')) {
       if (CACHEABLE_API.test(url.pathname)) event.respondWith(networkFirst(request, API_CACHE));
-    } else if (url.pathname.endsWith('.webmanifest')) {
-      // The manifest decides the installed app's name and icons: always the server's copy
-      // when online (a stale one gave iOS an icon list it could not render).
-      event.respondWith(networkFirst(request, STATIC_CACHE));
+    } else if (IS_ICON_OR_MANIFEST.test(url.pathname)) {
+      // Not intercepted: the browser fetches icons and the manifest itself. iOS builds the
+      // Home Screen icon from these, and a worker in that path is one more thing that can
+      // hand it something stale; the HTTP cache covers repeat visits.
+      return;
     } else if (url.pathname !== '/sw.js') {
       event.respondWith(staleWhileRevalidate(request, STATIC_CACHE));
     }

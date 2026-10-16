@@ -426,7 +426,8 @@ placeholder survives substitution.
 | `/assets/*` (hashed) | cache-first | `dockcast-assets`, shared across versions (≤ 300) so older open tabs keep their lazy chunks |
 | public read API: `/cities`, `/cities/:slug/stations`, `/cities/:slug/map`, `/stations/:id`, `/stations/:id/history`, `/model` | network-first; a cached copy wins after 4 s or on failure | `dockcast-api` (≤ 150) |
 | `tiles.openfreemap.org` (style, tiles, glyphs, sprites) | stale-while-revalidate | `dockcast-tiles` (≤ 1500) |
-| other same-origin files (icons, manifest) | stale-while-revalidate | `dockcast-static` (≤ 60) |
+| icons, `favicon.*`, `apple-touch-icon*`, `site.webmanifest` | not intercepted: the browser (and iOS's Home Screen icon builder) fetch them directly | browser HTTP cache |
+| other same-origin files (og image, screenshots) | stale-while-revalidate | `dockcast-static` (≤ 60) |
 | auth, commutes, push, trip check, every non-GET | network only, never cached | — |
 
 Caps evict oldest-first. The offline banner ("Showing the last data we had") is now literally true.
@@ -444,7 +445,7 @@ immediately (nothing to update from).
 
 **Install.** `public/site.webmanifest`: `id`/`scope` `/`, `display: standalone`, PNG icons only
 (any 192/512, maskable 192/512; an SVG entry broke Android home-screen icons), shortcuts (Trip check, My commutes, Model), narrow and wide screenshots in
-`public/screenshots/`. Every icon URL and the manifest link carry a `?v=` cache key (bump it when icons change: iOS caches failed icon fetches per URL); the service worker fetches the manifest network-first. Root-path icons exist as real files (`/apple-touch-icon.png` 180 px opaque, `/apple-touch-icon-precomposed.png`, `/favicon.ico`) because iOS and launchers probe them directly. `index.html` adds `mobile-web-app-capable`, the `apple-*` tags (status bar
+`public/screenshots/`. Every icon URL and the manifest link carry a `?v=` cache key (bump it when icons change: iOS caches failed icon fetches per URL); the service worker does not intercept icons or the manifest. Home-screen icons are opaque RGB PNGs with no alpha channel (iOS can discard icons with transparency and draw a letter tile). Root-path icons exist as real files (`/apple-touch-icon.png` 180 px opaque, `/apple-touch-icon-precomposed.png`, `/favicon.ico`) because iOS and launchers probe them directly. `index.html` adds `mobile-web-app-capable`, the `apple-*` tags (status bar
 `default`, so the header never sits under it) and a `theme-color` per colour scheme; `lib/theme.ts`
 rewrites them when the user picks Light/Dark manually. `lib/install.ts` captures
 `beforeinstallprompt` before React mounts. `InstallCard` (About page) offers the browser's prompt,

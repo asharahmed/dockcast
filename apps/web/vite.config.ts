@@ -13,17 +13,10 @@ import tailwindcss from '@tailwindcss/vite';
 const publicBaseUrl = (process.env.VITE_PUBLIC_BASE_URL ?? 'https://dockcast.aahmed.ca').replace(/\/$/, '');
 
 /** Files from public/ the service worker precaches alongside the build output. */
-const PUBLIC_PRECACHE = [
-  '/favicon.svg',
-  '/favicon.ico',
-  '/site.webmanifest',
-  '/apple-touch-icon.png',
-  '/icons/icon-192.png',
-  '/icons/icon-512.png',
-  '/icons/icon-maskable-192.png',
-  '/icons/icon-maskable-512.png',
-  '/icons/badge-96.png',
-];
+// Icons and the manifest are deliberately absent: the worker leaves them to the browser
+// (sw.template.js IS_ICON_OR_MANIFEST). The notification badge is fetched by the worker
+// itself when showing a push, so it stays.
+const PUBLIC_PRECACHE = ['/icons/badge-96.png'];
 
 /**
  * Emits dist/sw.js from sw/sw.template.js (ui-spec.md §8): the precache list is every

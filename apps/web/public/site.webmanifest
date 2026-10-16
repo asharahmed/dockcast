@@ -22,31 +22,31 @@
   ],
   "icons": [
     {
-      "src": "/apple-touch-icon.png?v=3",
+      "src": "/apple-touch-icon.png?v=4",
       "sizes": "180x180",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/icons/icon-192.png?v=3",
+      "src": "/icons/icon-192.png?v=4",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/icons/icon-512.png?v=3",
+      "src": "/icons/icon-512.png?v=4",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/icons/icon-maskable-192.png?v=3",
+      "src": "/icons/icon-maskable-192.png?v=4",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "maskable"
     },
     {
-      "src": "/icons/icon-maskable-512.png?v=3",
+      "src": "/icons/icon-maskable-512.png?v=4",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
@@ -60,7 +60,7 @@
       "url": "/trip",
       "icons": [
         {
-          "src": "/icons/icon-192.png?v=3",
+          "src": "/icons/icon-192.png?v=4",
           "sizes": "192x192",
           "type": "image/png"
         }
@@ -73,7 +73,7 @@
       "url": "/commutes",
       "icons": [
         {
-          "src": "/icons/icon-192.png?v=3",
+          "src": "/icons/icon-192.png?v=4",
           "sizes": "192x192",
           "type": "image/png"
         }
@@ -85,7 +85,7 @@
       "url": "/model",
       "icons": [
         {
-          "src": "/icons/icon-192.png?v=3",
+          "src": "/icons/icon-192.png?v=4",
           "sizes": "192x192",
           "type": "image/png"
         }
