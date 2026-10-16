@@ -29,6 +29,11 @@ export function mountStatic(app: Express, config: Config, logger: Logger): void 
         index: false,
         setHeaders(res, filePath) {
           const base = basename(filePath);
+          // helmet sets Cross-Origin-Resource-Policy: same-origin on everything. WebKit loads
+          // touch icons and favicons outside the page's own context, so with same-origin iOS
+          // drops the apple-touch-icon and puts a letter tile on the home screen. Static files
+          // are public; only the HTML shell (and the api) keep same-origin.
+          if (base !== 'index.html') res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
           if (base === 'index.html') {
             res.setHeader('Cache-Control', 'no-cache');
           } else if (base === 'sw.js') {

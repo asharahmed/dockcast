@@ -23,6 +23,7 @@ describe('static SPA serving (docs/api.md §10)', () => {
       expect(res.status).toBe(200);
       expect(res.text).toContain('test-fixture-spa-shell');
       expect(res.headers['cache-control']).toBe('no-cache');
+      expect(res.headers['cross-origin-resource-policy']).toBe('same-origin');
     });
 
     it('404s a missing file path instead of answering with the HTML shell', async () => {
@@ -47,6 +48,8 @@ describe('static SPA serving (docs/api.md §10)', () => {
       const res = await request(ctx.app).get('/favicon.svg');
       expect(res.status).toBe(200);
       expect(res.headers['cache-control']).toBe('public, max-age=3600');
+      // Loadable outside the page context (iOS home-screen icon fetcher).
+      expect(res.headers['cross-origin-resource-policy']).toBe('cross-origin');
     });
 
     it('serves sw.js with no-cache and Service-Worker-Allowed: /', async () => {
