@@ -6,5 +6,6 @@ export const REPO_URL = (import.meta.env.VITE_REPO_URL as string | undefined) ||
 
 export const ISSUES_URL = `${REPO_URL}/issues`;
 
-/** Shown on /privacy when set; otherwise the page points to GitHub issues only. */
-export const CONTACT_EMAIL = (import.meta.env.VITE_CONTACT_EMAIL as string | undefined) || null;
+/** Contact for privacy and data requests, shown on /privacy. */
+export const CONTACT_EMAIL: string | null =
+  (import.meta.env.VITE_CONTACT_EMAIL as string | undefined) || 'ashar@aahmed.ca';

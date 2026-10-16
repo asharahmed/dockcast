@@ -16,5 +16,6 @@ describe('PrivacyPage', () => {
     expect(screen.getAllByRole('link', { name: 'account page' })[0]).toHaveAttribute('href', '/account');
     const githubLinks = screen.getAllByRole('link', { name: 'GitHub' }).map((a) => a.getAttribute('href'));
     expect(githubLinks).toContain('https://github.com/asharahmed/dockcast/issues');
+    expect(screen.getByRole('link', { name: 'ashar@aahmed.ca' })).toHaveAttribute('href', 'mailto:ashar@aahmed.ca');
   });
 });

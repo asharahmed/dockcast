@@ -13,7 +13,7 @@ import { Link } from 'react-router';
 import { useDocumentTitle } from '../hooks/useDocumentTitle.js';
 import { CONTACT_EMAIL, ISSUES_URL, REPO_URL } from '../lib/site.js';
 
-export const PRIVACY_UPDATED = '13 October 2026';
+export const PRIVACY_UPDATED = '16 October 2026';
 
 function H2({ children }: { children: React.ReactNode }) {
   return <h2 className="text-[length:var(--fs-lg)] text-ink">{children}</h2>;
