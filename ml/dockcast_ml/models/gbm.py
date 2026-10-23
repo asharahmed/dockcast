@@ -53,19 +53,18 @@ def _as_matrix(x: pd.DataFrame | np.ndarray) -> np.ndarray:
     return np.asarray(x, dtype=np.float32)
 
 
-def train_boosters(
+def build_datasets(
     x_tr: pd.DataFrame | np.ndarray,
     y_tr: dict[str, np.ndarray],
     x_es: pd.DataFrame | np.ndarray,
     y_es: dict[str, np.ndarray],
-) -> dict[str, lgb.Booster]:
-    """Train `M_bike`, `M_dock` (binary) and `M_cnt` (L2 regression) on `x_tr`/`y_tr`, early
-    stopping on `x_es`/`y_es` (docs/ml-spec.md §3.4).
+) -> tuple[lgb.Dataset, lgb.Dataset]:
+    """The binned training and early-stopping Datasets, built once and shared by all targets.
 
-    Feature matrices are float32 arrays in `FEATURE_NAMES` order (or DataFrames holding those
-    columns). The binned training and early-stopping Datasets are built once and reused for all
-    three targets with only the label swapped: binning depends on the features and on
-    `PARAMS_BASE`'s dataset parameters, which are the same for every target.
+    Binning depends on the features and on `PARAMS_BASE`'s dataset parameters, which are the
+    same for every target, so only the label differs between targets. The Datasets drop their
+    reference to the raw matrices once constructed (`free_raw_data=True`); a caller that then
+    drops its own references releases the raw feature memory before the fit starts.
     """
     dtr = lgb.Dataset(
         _as_matrix(x_tr),
@@ -86,7 +85,18 @@ def train_boosters(
     )
     des.construct()
     log_memory(logger, "gbm_datasets")
+    return dtr, des
 
+
+def fit_boosters(
+    dtr: lgb.Dataset,
+    des: lgb.Dataset,
+    y_tr: dict[str, np.ndarray],
+    y_es: dict[str, np.ndarray],
+) -> dict[str, lgb.Booster]:
+    """Train `M_bike`, `M_dock` (binary) and `M_cnt` (L2 regression) on the `build_datasets`
+    pair, early stopping on `des` (docs/ml-spec.md §3.4).
+    """
     boosters: dict[str, lgb.Booster] = {}
     for target in _TARGETS:
         if target in ("bike", "dock"):
@@ -107,6 +117,19 @@ def train_boosters(
     return boosters
 
 
+def train_boosters(
+    x_tr: pd.DataFrame | np.ndarray,
+    y_tr: dict[str, np.ndarray],
+    x_es: pd.DataFrame | np.ndarray,
+    y_es: dict[str, np.ndarray],
+) -> dict[str, lgb.Booster]:
+    """`build_datasets` then `fit_boosters`. Feature matrices are float32 arrays in
+    `FEATURE_NAMES` order (or DataFrames holding those columns).
+    """
+    dtr, des = build_datasets(x_tr, y_tr, x_es, y_es)
+    return fit_boosters(dtr, des, y_tr, y_es)
+
+
 def predict_raw(boosters: dict[str, lgb.Booster], x: pd.DataFrame | np.ndarray) -> dict[str, np.ndarray]:
     """`booster.predict(X[FEATURE_NAMES], num_iteration=booster.best_iteration)` per target."""
     feat = x[FEATURE_NAMES] if isinstance(x, pd.DataFrame) else x
@@ -116,4 +139,7 @@ def predict_raw(boosters: dict[str, lgb.Booster], x: pd.DataFrame | np.ndarray) 
     }
 
 
-__all__ = ["PARAMS_BASE", "NUM_BOOST_ROUND", "EARLY_STOPPING_ROUNDS", "train_boosters", "predict_raw"]
+__all__ = [
+    "PARAMS_BASE", "NUM_BOOST_ROUND", "EARLY_STOPPING_ROUNDS",
+    "build_datasets", "fit_boosters", "train_boosters", "predict_raw",
+]

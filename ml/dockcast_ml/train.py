@@ -117,6 +117,49 @@ _LIGHT_COLS = [
 ]
 
 
+class _SplitBuffer:
+    """Feature matrix (float32) and labels for one split, filled day by day into arrays
+    allocated once at the expected final size (the capped per-day row counts), so no second
+    full-size copy is ever made. If the rows read differ from the counts (data written between
+    the count pass and the read), the arrays grow or are trimmed; order is always append order.
+    """
+
+    def __init__(self, expected_rows: int) -> None:
+        self.n = 0
+        self._alloc(max(expected_rows, 1))
+
+    def _alloc(self, capacity: int) -> None:
+        self.x = np.empty((capacity, len(FEATURE_NAMES)), dtype=np.float32)
+        self.y = {
+            "bike": np.empty(capacity, dtype=np.int8),
+            "dock": np.empty(capacity, dtype=np.int8),
+            "cnt": np.empty(capacity, dtype=np.float32),
+        }
+
+    def append(self, x: np.ndarray, y_bike: np.ndarray, y_dock: np.ndarray, y_cnt: np.ndarray) -> None:
+        end = self.n + len(x)
+        if end > len(self.x):
+            old_x, old_y, n = self.x, self.y, self.n
+            self._alloc(max(end, 2 * len(old_x)))
+            self.x[:n] = old_x[:n]
+            for k in old_y:
+                self.y[k][:n] = old_y[k][:n]
+        self.x[self.n : end] = x
+        self.y["bike"][self.n : end] = y_bike
+        self.y["dock"][self.n : end] = y_dock
+        self.y["cnt"][self.n : end] = y_cnt
+        self.n = end
+
+    def finish(self) -> tuple[np.ndarray, dict[str, np.ndarray]]:
+        """`(x, y)` of exactly the rows appended; the buffer must not be used afterwards."""
+        if self.n != len(self.x):
+            self.x = self.x[: self.n].copy()
+            self.y = {k: v[: self.n].copy() for k, v in self.y.items()}
+        x, y = self.x, self.y
+        del self.x, self.y
+        return x, y
+
+
 def _json_safe(obj: Any) -> Any:
     """Recursively replace non-finite floats with `None` (jsonb rejects `NaN`/`Infinity`)."""
     if isinstance(obj, float):
@@ -459,10 +502,8 @@ def train_city(cfg: Config, conn: psycopg.Connection, city: dict[str, Any], T: d
     rng = np.random.default_rng(_SEED)
 
     # --- pass 2: per-day feature build ---
-    x_tr_parts: list[np.ndarray] = []
-    y_tr: dict[str, list[np.ndarray]] = {"bike": [], "dock": [], "cnt": []}
-    x_es_parts: list[np.ndarray] = []
-    y_es: dict[str, list[np.ndarray]] = {"bike": [], "dock": [], "cnt": []}
+    tr_buf = _SplitBuffer(sum(n_d["train"].values()))
+    es_buf = _SplitBuffer(sum(n_d["es"].values()))
     val_light_parts: list[pd.DataFrame] = []
     val_day_order: list[date] = []
 
@@ -497,15 +538,19 @@ def train_city(cfg: Config, conn: psycopg.Connection, city: dict[str, Any], T: d
                     x_d = build_features(ctx_d, rows_d[_FEATURE_INPUT_COLS])
 
                     if split_name == "train":
-                        x_tr_parts.append(x_d[FEATURE_NAMES].to_numpy(dtype=np.float32))
-                        y_tr["bike"].append(rows_d["y_bike"].to_numpy(dtype=np.int8))
-                        y_tr["dock"].append(rows_d["y_dock"].to_numpy(dtype=np.int8))
-                        y_tr["cnt"].append(rows_d["y_cnt"].to_numpy(dtype=np.float32))
+                        tr_buf.append(
+                            x_d[FEATURE_NAMES].to_numpy(dtype=np.float32),
+                            rows_d["y_bike"].to_numpy(dtype=np.int8),
+                            rows_d["y_dock"].to_numpy(dtype=np.int8),
+                            rows_d["y_cnt"].to_numpy(dtype=np.float32),
+                        )
                     elif split_name == "es":
-                        x_es_parts.append(x_d[FEATURE_NAMES].to_numpy(dtype=np.float32))
-                        y_es["bike"].append(rows_d["y_bike"].to_numpy(dtype=np.int8))
-                        y_es["dock"].append(rows_d["y_dock"].to_numpy(dtype=np.int8))
-                        y_es["cnt"].append(rows_d["y_cnt"].to_numpy(dtype=np.float32))
+                        es_buf.append(
+                            x_d[FEATURE_NAMES].to_numpy(dtype=np.float32),
+                            rows_d["y_bike"].to_numpy(dtype=np.int8),
+                            rows_d["y_dock"].to_numpy(dtype=np.int8),
+                            rows_d["y_cnt"].to_numpy(dtype=np.float32),
+                        )
                     else:
                         np.save(tmp_path / f"val_{d.isoformat()}.npy", x_d[FEATURE_NAMES].to_numpy(np.float32))
                         val_light_parts.append(rows_d[_LIGHT_COLS])
@@ -517,8 +562,8 @@ def train_city(cfg: Config, conn: psycopg.Connection, city: dict[str, Any], T: d
             train_profile.add_day(d, day_type(d, hol), grid_d, slice(col_start, col_end))
 
         log_memory(logger, "feature_build")
-        n_train = sum(len(p) for p in x_tr_parts)
-        n_es = sum(len(p) for p in x_es_parts)
+        n_train = tr_buf.n
+        n_es = es_buf.n
         n_val = sum(len(p) for p in val_light_parts)
         summary["n_train_rows"] = n_train
         summary["n_es_rows"] = n_es
@@ -538,19 +583,21 @@ def train_city(cfg: Config, conn: psycopg.Connection, city: dict[str, Any], T: d
             logger.info("train_city complete (insufficient split rows)", extra=summary)
             return summary
 
-        # One contiguous float32 matrix per split, with the per-day parts dropped right away.
-        x_tr = np.concatenate(x_tr_parts)
-        x_tr_parts.clear()
-        x_es = np.concatenate(x_es_parts)
-        x_es_parts.clear()
-        y_tr_arrays = {k: np.concatenate(v) for k, v in y_tr.items()}
-        y_es_arrays = {k: np.concatenate(v) for k, v in y_es.items()}
+        x_tr, y_tr_arrays = tr_buf.finish()
+        x_es, y_es_arrays = es_buf.finish()
+        del tr_buf, es_buf
         val_light = pd.concat(val_light_parts, ignore_index=True) if val_light_parts else pd.DataFrame(columns=_LIGHT_COLS)
 
         # 7. train + calibrate on es
         log_memory(logger, "feature_matrices")
-        boosters = gbm_mod.train_boosters(x_tr, y_tr_arrays, x_es, y_es_arrays)
+        # The Datasets keep only the binned copy; dropping the raw training matrix before the
+        # fit releases it for the whole of the (long) boosting phase. `x_es` stays for the
+        # calibration pass below.
+        dtr, des = gbm_mod.build_datasets(x_tr, y_tr_arrays, x_es, y_es_arrays)
         del x_tr
+        release()
+        boosters = gbm_mod.fit_boosters(dtr, des, y_tr_arrays, y_es_arrays)
+        del dtr, des
         release()
         raw_es = gbm_mod.predict_raw(boosters, x_es)
         h_es = x_es[:, FEATURE_NAMES.index("h")].astype(np.int32)

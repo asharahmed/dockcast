@@ -135,7 +135,7 @@ services:
     # report.
     command: ["supercronic", "-no-reap", "-passthrough-logs", "/app/crontab"]
     environment:
-      DATABASE_URL: ${DATABASE_URL}
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
       HEALTHCHECKS_TRAINER_URL: ${HEALTHCHECKS_TRAINER_URL:-}   # optional ping after a good run
       MIGRATIONS_DIR: /app/db/migrations
       TZ: America/Toronto                           # supercronic schedules in the container's local time
