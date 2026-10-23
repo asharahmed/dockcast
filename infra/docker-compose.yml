@@ -106,7 +106,10 @@ services:
     mem_limit: 768m
 
   worker-train:
-    <<: *app-env
+    # No `env_file`: the shared .env also holds the web/api secrets (session, VAPID, Cloudflare,
+    # ...), and the trainer needs none of them. It gets exactly the variables below.
+    logging: *default-logging
+    restart: unless-stopped
     build: { context: .., dockerfile: ml/Dockerfile }
     image: ghcr.io/${GHCR_OWNER:-local}/dockcast-worker:${IMAGE_TAG:-latest}
     # `-no-reap`: supercronic's PID-1 zombie-reaping loop crash-loops on this
@@ -118,10 +121,15 @@ services:
     # report.
     command: ["supercronic", "-no-reap", "-passthrough-logs", "/app/crontab"]
     environment:
+      DATABASE_URL: ${DATABASE_URL}
+      HEALTHCHECKS_TRAINER_URL: ${HEALTHCHECKS_TRAINER_URL:-}   # optional ping after a good run
       MIGRATIONS_DIR: /app/db/migrations
       TZ: America/Toronto                           # supercronic schedules in the container's local time
       TRIPS_CACHE_DIR: /data/cache
       LOG_LEVEL: INFO                                # see worker-predict comment above
+      # glibc keeps a malloc arena per thread; two is plenty for LightGBM's 2 threads and stops
+      # freed numpy/pandas buffers from staying mapped in idle arenas.
+      MALLOC_ARENA_MAX: "2"
       # OOM self-healing for the nightly job (ml/scripts/train-with-retry.sh): after an OOM kill
       # the wrapper raises this container's memory limit by TRAIN_MEM_STEP (never above
       # TRAIN_MEM_MAX) via the docker socket and re-runs; the raised limit is persisted on the
@@ -130,6 +138,8 @@ services:
       TRAIN_MEM_STEP: ${TRAIN_MEM_STEP:-2g}
       TRAIN_MEM_MAX: ${TRAIN_MEM_MAX:-8g}
       TRAIN_MEM_STATE_FILE: /data/cache/train_mem_limit
+      TRAIN_MEM_HEADROOM_PCT: ${TRAIN_MEM_HEADROOM_PCT:-80}
+      TRAIN_MAX_ATTEMPTS: ${TRAIN_MAX_ATTEMPTS:-6}
     # docker.sock is root:root 660 on Docker Desktop (root:docker on Linux -> set DOCKER_SOCK_GID);
     # the image runs as `app`, so add the socket's group for `POST /containers/<self>/update`.
     group_add: ["${DOCKER_SOCK_GID:-0}"]
