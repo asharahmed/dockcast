@@ -587,6 +587,9 @@ def train_city(cfg: Config, conn: psycopg.Connection, city: dict[str, Any], T: d
         x_es, y_es_arrays = es_buf.finish()
         del tr_buf, es_buf
         val_light = pd.concat(val_light_parts, ignore_index=True) if val_light_parts else pd.DataFrame(columns=_LIGHT_COLS)
+        del val_light_parts
+        # Last day's frames of the pass-2 loop; names may be unbound if the loop never built a day.
+        rows_d = grid_d = ctx_d = x_d = None
 
         # 7. train + calibrate on es
         log_memory(logger, "feature_matrices")
@@ -640,6 +643,9 @@ def train_city(cfg: Config, conn: psycopg.Connection, city: dict[str, Any], T: d
                 active_p_dock.append(apply_calibrators(active_bundle.calibrators.get("dock", {}), raw_active["dock"], h_d))
                 active_cnt.append(np.clip(raw_active["cnt"], 0.0, cap0_d))
 
+    # Val-scoring loop temporaries; raw_active/active_boosters are only bound when a GBM is active.
+    x_d = cap0_d = h_d = raw_cand = raw_active = active_boosters = None
+    active_loaded = bundle = None
     log_memory(logger, "val_scoring")
     horizons_val = val_light["horizon"].to_numpy()
     bikes0_val = val_light["bikes0"].to_numpy()
@@ -743,6 +749,9 @@ def train_city(cfg: Config, conn: psycopg.Connection, city: dict[str, Any], T: d
     del boosters, gbm_bundle, val_light, horizons_val, bikes0_val, docks0_val
     del y_bike_val, y_dock_val, y_cnt_val, persistence_preds, bd_raw_preds
     del cand_p_bike, cand_p_dock, cand_cnt, cand_preds
+    del active_p_bike, active_p_dock, active_cnt, gbm_artifact
+    # Bound only on the calibrators-present / active-GBM paths.
+    bd_cal_p_bike = bd_cal_p_dock = bd_cal_preds = active_preds = active_bundle = None
     release()
     log_memory(logger, "release")
     summary["metrics_online"] = metrics_online.compute(conn, city, T)
