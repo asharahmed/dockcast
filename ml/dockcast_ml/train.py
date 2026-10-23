@@ -45,6 +45,7 @@ from dockcast_ml.gate import evaluate_gate
 from dockcast_ml.gbfs_ids import load_stations
 from dockcast_ml.grid import load_city_grid
 from dockcast_ml.labels import materialise_labels
+from dockcast_ml.memory import log_memory, release
 from dockcast_ml.models import gbm as gbm_mod
 from dockcast_ml.models.artifact import BdBundle, GbmBundle, boosters_of, dumps, load_active
 from dockcast_ml.models.calibration import apply_calibrators, fit_calibrators
@@ -99,6 +100,17 @@ _FEATURE_INPUT_COLS = [
     "station_pk", "t0", "horizon",
     "bd_p_bike", "bd_p_dock", "bd_exp_cnt", "bd_A", "bd_D", "lam_in_now", "lam_out_now",
 ]
+# Narrow dtypes for the per-day row read. Integer and boolean columns only: the real columns stay
+# float64 because the text protocol hands psycopg a decimal string, and float32 would round it
+# differently from the float64 the features were built from before.
+_ROW_DTYPES = {
+    "station_pk": "int32",
+    "bikes0": "int16",
+    "docks0": "int16",
+    "y_bike": "bool",
+    "y_dock": "bool",
+    "y_cnt": "int16",
+}
 _LIGHT_COLS = [
     "station_pk", "t0", "horizon", "bikes0", "docks0", "y_bike", "y_dock", "y_cnt",
     "bd_p_bike", "bd_p_dock", "bd_exp_cnt",
@@ -380,6 +392,7 @@ def train_city(cfg: Config, conn: psycopg.Connection, city: dict[str, Any], T: d
 
     # 2. labels
     summary["labels"] = materialise_labels(conn, city, now)
+    log_memory(logger, "labels")
 
     # 3. profile for the coming local day
     stations_df = load_stations(conn, city_id, active_only=True)
@@ -387,11 +400,13 @@ def train_city(cfg: Config, conn: psycopg.Connection, city: dict[str, Any], T: d
     serving_profile = build_rolling_profile(conn, city_id, tz, hol, station_pks, T)
     write_table(conn, city_id, serving_profile.to_frame(T))
     summary["profile_rows"] = len(serving_profile.to_frame(T))
+    log_memory(logger, "serving_profile")
 
     # 4. bd calibration (always writes a bd model_versions row)
     bd_id, ref_tier, bd_bundle = _refit_bd(conn, cfg, city_id, tz_name, T, now)
     summary["bd_id"] = bd_id
     summary["ref_tier"] = ref_tier
+    log_memory(logger, "bd_calibration")
 
     # 5. row universe & splits
     t_from60 = local_midnight(T - timedelta(days=60), tz)
@@ -418,6 +433,7 @@ def train_city(cfg: Config, conn: psycopg.Connection, city: dict[str, Any], T: d
 
     rates, rates_ok, multipliers, neighbor_idx = _load_static_context(conn, city_id, station_pks)
     train_profile = build_rolling_profile(conn, city_id, tz, hol, station_pks, start)
+    log_memory(logger, "train_profile")
 
     # --- pass 1: per-day row counts (for cap-based subsampling) ---
     all_days = [start + timedelta(days=i) for i in range((T - start).days)]
@@ -438,12 +454,14 @@ def train_city(cfg: Config, conn: psycopg.Connection, city: dict[str, Any], T: d
         else:
             n_d[split_name] = dict(c)
 
+    log_memory(logger, "row_counts")
+
     rng = np.random.default_rng(_SEED)
 
     # --- pass 2: per-day feature build ---
-    x_tr_parts: list[pd.DataFrame] = []
+    x_tr_parts: list[np.ndarray] = []
     y_tr: dict[str, list[np.ndarray]] = {"bike": [], "dock": [], "cnt": []}
-    x_es_parts: list[pd.DataFrame] = []
+    x_es_parts: list[np.ndarray] = []
     y_es: dict[str, list[np.ndarray]] = {"bike": [], "dock": [], "cnt": []}
     val_light_parts: list[pd.DataFrame] = []
     val_day_order: list[date] = []
@@ -455,7 +473,10 @@ def train_city(cfg: Config, conn: psycopg.Connection, city: dict[str, Any], T: d
             day_start = local_midnight(d, tz)
             day_end = local_midnight(d + timedelta(days=1), tz)
 
-            rows_d = db.fetch_df(conn, _ROW_SQL, {"city_id": city_id, "day_start": day_start, "day_end": day_end})
+            rows_d = db.fetch_df_chunked(
+                conn, _ROW_SQL, {"city_id": city_id, "day_start": day_start, "day_end": day_end},
+                dtypes=_ROW_DTYPES,
+            )
             grid_d = load_city_grid(
                 conn, city_id, station_pks, day_start - timedelta(minutes=61), day_end + timedelta(minutes=120)
             )
@@ -476,12 +497,12 @@ def train_city(cfg: Config, conn: psycopg.Connection, city: dict[str, Any], T: d
                     x_d = build_features(ctx_d, rows_d[_FEATURE_INPUT_COLS])
 
                     if split_name == "train":
-                        x_tr_parts.append(x_d[FEATURE_NAMES])
+                        x_tr_parts.append(x_d[FEATURE_NAMES].to_numpy(dtype=np.float32))
                         y_tr["bike"].append(rows_d["y_bike"].to_numpy(dtype=np.int8))
                         y_tr["dock"].append(rows_d["y_dock"].to_numpy(dtype=np.int8))
                         y_tr["cnt"].append(rows_d["y_cnt"].to_numpy(dtype=np.float32))
                     elif split_name == "es":
-                        x_es_parts.append(x_d[FEATURE_NAMES])
+                        x_es_parts.append(x_d[FEATURE_NAMES].to_numpy(dtype=np.float32))
                         y_es["bike"].append(rows_d["y_bike"].to_numpy(dtype=np.int8))
                         y_es["dock"].append(rows_d["y_dock"].to_numpy(dtype=np.int8))
                         y_es["cnt"].append(rows_d["y_cnt"].to_numpy(dtype=np.float32))
@@ -495,6 +516,7 @@ def train_city(cfg: Config, conn: psycopg.Connection, city: dict[str, Any], T: d
             col_end = grid_d.col(day_end - timedelta(minutes=1)) + 1
             train_profile.add_day(d, day_type(d, hol), grid_d, slice(col_start, col_end))
 
+        log_memory(logger, "feature_build")
         n_train = sum(len(p) for p in x_tr_parts)
         n_es = sum(len(p) for p in x_es_parts)
         n_val = sum(len(p) for p in val_light_parts)
@@ -516,17 +538,27 @@ def train_city(cfg: Config, conn: psycopg.Connection, city: dict[str, Any], T: d
             logger.info("train_city complete (insufficient split rows)", extra=summary)
             return summary
 
-        x_tr = pd.concat(x_tr_parts, ignore_index=True)
-        x_es = pd.concat(x_es_parts, ignore_index=True)
+        # One contiguous float32 matrix per split, with the per-day parts dropped right away.
+        x_tr = np.concatenate(x_tr_parts)
+        x_tr_parts.clear()
+        x_es = np.concatenate(x_es_parts)
+        x_es_parts.clear()
         y_tr_arrays = {k: np.concatenate(v) for k, v in y_tr.items()}
         y_es_arrays = {k: np.concatenate(v) for k, v in y_es.items()}
         val_light = pd.concat(val_light_parts, ignore_index=True) if val_light_parts else pd.DataFrame(columns=_LIGHT_COLS)
 
         # 7. train + calibrate on es
+        log_memory(logger, "feature_matrices")
         boosters = gbm_mod.train_boosters(x_tr, y_tr_arrays, x_es, y_es_arrays)
+        del x_tr
+        release()
         raw_es = gbm_mod.predict_raw(boosters, x_es)
-        cal_bike_gbm = fit_calibrators(raw_es["bike"], y_es_arrays["bike"], x_es["h"].to_numpy())
-        cal_dock_gbm = fit_calibrators(raw_es["dock"], y_es_arrays["dock"], x_es["h"].to_numpy())
+        h_es = x_es[:, FEATURE_NAMES.index("h")].astype(np.int32)
+        cal_bike_gbm = fit_calibrators(raw_es["bike"], y_es_arrays["bike"], h_es)
+        cal_dock_gbm = fit_calibrators(raw_es["dock"], y_es_arrays["dock"], h_es)
+        del x_es, raw_es, h_es, y_tr_arrays, y_es_arrays
+        release()
+        log_memory(logger, "calibration")
 
         # 8. score every tier on the same val rows
         active_loaded = load_active(conn, city_id, "gbm")
@@ -561,6 +593,7 @@ def train_city(cfg: Config, conn: psycopg.Connection, city: dict[str, Any], T: d
                 active_p_dock.append(apply_calibrators(active_bundle.calibrators.get("dock", {}), raw_active["dock"], h_d))
                 active_cnt.append(np.clip(raw_active["cnt"], 0.0, cap0_d))
 
+    log_memory(logger, "val_scoring")
     horizons_val = val_light["horizon"].to_numpy()
     bikes0_val = val_light["bikes0"].to_numpy()
     docks0_val = val_light["docks0"].to_numpy()
@@ -658,8 +691,15 @@ def train_city(cfg: Config, conn: psycopg.Connection, city: dict[str, Any], T: d
     n_eval_bd = _write_model_eval(conn, bd_id, "val", persistence_rows + bd_raw_rows + bd_cal_rows)
     summary["n_model_eval_rows"] = n_eval_cand + n_eval_bd
 
-    # 9. online metrics
+    # 9. online metrics. Release everything the fit and the val scoring held first: the 7-day
+    # window read is the other large allocation of the run and need not sit on top of them.
+    del boosters, gbm_bundle, val_light, horizons_val, bikes0_val, docks0_val
+    del y_bike_val, y_dock_val, y_cnt_val, persistence_preds, bd_raw_preds
+    del cand_p_bike, cand_p_dock, cand_cnt, cand_preds
+    release()
+    log_memory(logger, "release")
     summary["metrics_online"] = metrics_online.compute(conn, city, T)
+    log_memory(logger, "metrics_online")
 
     # 10. housekeeping
     _housekeeping(conn, city_id, now)

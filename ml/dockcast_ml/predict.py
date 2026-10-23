@@ -470,7 +470,7 @@ def loop(cfg: Config, city_slug: str | None = None) -> None:
     own `worker_run`.
     """
     states: dict[int, PredictState] = {}
-    conn = db.connect(cfg, autocommit=False)
+    conn = db.connect(cfg, autocommit=False, application_name="dockcast_ml_predict")
     try:
         while True:
             now = datetime.now(UTC)
@@ -499,7 +499,7 @@ def loop(cfg: Config, city_slug: str | None = None) -> None:
                     except Exception:
                         logger.exception("rollback failed; reconnecting")
                         conn.close()
-                        conn = db.connect(cfg, autocommit=False)
+                        conn = db.connect(cfg, autocommit=False, application_name="dockcast_ml_predict")
             # End the implicit transaction opened by the cities SELECT so we don't sit
             # "idle in transaction" (holding a snapshot) for the whole sleep.
             conn.commit()
