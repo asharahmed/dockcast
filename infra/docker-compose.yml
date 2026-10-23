@@ -4,6 +4,12 @@ x-logging: &default-logging
   driver: json-file
   options: { max-size: "20m", max-file: "5" }
 
+# The host's Watchtower must not touch this stack: deploy.yml rolls the images out, and
+# Watchtower's 04:00 run overlaps the 03:30 training window (it recreated the db mid-training
+# on 2026-10-22).
+x-no-watchtower: &no-watchtower
+  com.centurylinklabs.watchtower.enable: "false"
+
 # `env_file` is normally `.env` (the real prod file at /opt/dockcast/.env,
 # resolved relative to this compose file's directory). It's routed through
 # the `ENV_FILE` var (default `.env`) so a local smoke-test stack can pass
@@ -14,14 +20,21 @@ x-logging: &default-logging
 # by the deployed stack. See WP-11 final report.
 x-app-env: &app-env
   env_file: ${ENV_FILE:-.env}
+  labels: *no-watchtower
   logging: *default-logging
   restart: unless-stopped
 
 services:
   db:
     image: timescale/timescaledb-ha:pg16            # Postgres 16 + TimescaleDB 2.x + PostGIS 3
+    labels: *no-watchtower
     logging: *default-logging
     restart: unless-stopped
+    # A recreate or `docker stop` must let Postgres shut down cleanly: Docker's default 1 s
+    # grace period sends SIGKILL and the next start runs crash recovery. SIGINT is Postgres's
+    # fast shutdown (disconnect clients, checkpoint, exit) instead of waiting for them to leave.
+    stop_signal: SIGINT
+    stop_grace_period: 60s
     environment:
       POSTGRES_DB: dockcast
       POSTGRES_USER: postgres
@@ -106,6 +119,7 @@ services:
     mem_limit: 768m
 
   worker-train:
+    labels: *no-watchtower
     # No `env_file`: the shared .env also holds the web/api secrets (session, VAPID, Cloudflare,
     # ...), and the trainer needs none of them. It gets exactly the variables below.
     logging: *default-logging
@@ -155,6 +169,7 @@ services:
 
   caddy:
     build: { context: ./caddy }
+    labels: *no-watchtower
     image: ghcr.io/${GHCR_OWNER:-local}/dockcast-caddy:${IMAGE_TAG:-latest}
     logging: *default-logging
     restart: unless-stopped
@@ -188,6 +203,7 @@ services:
   cloudflared:
     image: cloudflare/cloudflared:latest
     profiles: ["tunnel"]
+    labels: *no-watchtower
     logging: *default-logging
     restart: unless-stopped
     command: ["tunnel", "--no-autoupdate", "run"]
