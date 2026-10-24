@@ -166,7 +166,7 @@ def _cmd_predict(cfg: config.Config, args: argparse.Namespace) -> int:
         predict.loop(cfg, city_slug=args.city)
         return 0
 
-    conn = db.connect(cfg, autocommit=False)
+    conn = db.connect(cfg, autocommit=False, application_name="dockcast_ml_predict")
     try:
         t0 = _parse_t0(args.t0) if args.t0 else ceil_to(datetime.now(UTC), cfg.predict_interval_sec)
         states: dict[int, predict.PredictState] = {}
@@ -207,7 +207,7 @@ def _cmd_profile(cfg: config.Config, args: argparse.Namespace) -> int:
 
 
 def _cmd_train(cfg: config.Config, args: argparse.Namespace) -> int:
-    conn = db.connect(cfg, autocommit=False)
+    conn = db.connect(cfg, autocommit=False, application_name="dockcast_ml_train")
     try:
         for city in _cities_for(conn, args.city):
             city_id = city["id"]

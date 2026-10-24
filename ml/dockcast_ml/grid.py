@@ -37,6 +37,17 @@ WHERE station_pk = ANY(%(pks)s) AND ts >= %(t_start)s AND ts <= %(t_end)s
 ORDER BY station_pk, ts
 """
 
+# Narrow dtypes for the range read (the large query here): every column below is NOT NULL in
+# station_snapshots, and `load_city_grid` casts them to these same widths anyway.
+_RANGE_DTYPES = {
+    "station_pk": "int32",
+    "bikes": "int16",
+    "docks": "int16",
+    "is_installed": "bool",
+    "is_renting": "bool",
+    "is_returning": "bool",
+}
+
 _POLLS_SQL = """
 SELECT polled_at
 FROM poll_log
@@ -94,7 +105,9 @@ def load_city_grid(
     t_index_ns = t_index.astype("int64").to_numpy()
 
     seed = db.fetch_df(conn, _SEED_SQL, {"pks": pks_list, "t_start": t_start})
-    rng = db.fetch_df(conn, _RANGE_SQL, {"pks": pks_list, "t_start": t_start, "t_end": t_end})
+    rng = db.fetch_df_chunked(
+        conn, _RANGE_SQL, {"pks": pks_list, "t_start": t_start, "t_end": t_end}, dtypes=_RANGE_DTYPES
+    )
     frames = [f for f in (seed, rng) if not f.empty]
     rows = pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
 

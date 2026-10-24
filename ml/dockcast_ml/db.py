@@ -14,13 +14,17 @@ from psycopg.rows import dict_row, tuple_row
 from dockcast_ml.config import Config
 
 
-def connect(cfg: Config, autocommit: bool = False) -> psycopg.Connection:
-    """A psycopg connection with dict rows and the app's `application_name`."""
+def connect(
+    cfg: Config, autocommit: bool = False, application_name: str = "dockcast_ml"
+) -> psycopg.Connection:
+    """A psycopg connection with dict rows and an `application_name` (visible in `pg_stat_activity`;
+    the trainer passes its own so its sessions can be told apart from the predictor's).
+    """
     return psycopg.connect(
         cfg.database_url,
         autocommit=autocommit,
         row_factory=dict_row,
-        application_name="dockcast_ml",
+        application_name=application_name,
     )
 
 
