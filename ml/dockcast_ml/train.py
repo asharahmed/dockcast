@@ -80,14 +80,18 @@ _ROW_FROM_WHERE = """
 _ROW_SQL = f"SELECT {_ROW_SELECT} {_ROW_FROM_WHERE}"
 _ROW_COUNT_SQL = f"SELECT count(*) AS n {_ROW_FROM_WHERE}"
 
+# Only the columns the calibrators use: station_pk and t0 would be boxed per row for nothing.
 _BD_CAL_SQL = """
-SELECT h.station_pk, h.t0, h.horizon, h.p_bike, h.p_dock, l.y_bike, l.y_dock
+SELECT h.horizon, h.p_bike, h.p_dock, l.y_bike, l.y_dock
 FROM forecast_history h
 JOIN forecast_labels l USING (station_pk, t0, horizon)
 JOIN stations s ON s.id = h.station_pk
 WHERE s.city_id = %(city_id)s AND s.is_active AND h.tier = 'bd_raw'
   AND h.t0 >= %(a)s AND h.t0 < %(b)s
 """
+
+# p_bike/p_dock stay float64 for the same reason as the real columns in _ROW_DTYPES below.
+_BD_CAL_DTYPES = {"horizon": "int16", "y_bike": "bool", "y_dock": "bool"}
 
 _DATA_DAYS_SQL = """
 SELECT DISTINCT (h.t0 AT TIME ZONE %(tz)s)::date AS d
@@ -392,11 +396,16 @@ def _refit_bd(
 ) -> tuple[int, str, BdBundle]:
     """Step 4: refit `bd` calibrators on `[T-21,T-7)`; write a `bd` `model_versions` row
     (always). Returns `(bd_id, ref_tier, bundle)`.
+
+    The 14-day window is ~8.4M rows (2026-10); read whole with `fetch_df` it set the
+    trainer's peak at ~5.7 GiB, so it streams in chunks with narrowed dtypes.
     """
     tz = tz_of(tz_name)
     a = local_midnight(T - timedelta(days=21), tz)
     b = local_midnight(T - timedelta(days=7), tz)
-    rows = db.fetch_df(conn, _BD_CAL_SQL, {"city_id": city_id, "a": a, "b": b})
+    rows = db.fetch_df_chunked(
+        conn, _BD_CAL_SQL, {"city_id": city_id, "a": a, "b": b}, dtypes=_BD_CAL_DTYPES, name="dockcast_bd_cal"
+    )
     n = len(rows)
 
     if n >= _MIN_ROWS_FOR_BD_CAL:
