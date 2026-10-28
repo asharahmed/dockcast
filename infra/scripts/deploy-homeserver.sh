@@ -6,7 +6,7 @@
 #   Defaults: DOCKCAST_HOMESERVER (user@host, required) and DOCKCAST_HOMESERVER_DIR (default C:\dockcast,
 #   or /srv/dockcast with DOCKCAST_HOMESERVER_OS=linux).
 #   DOCKCAST_HOMESERVER_PORT (default 8088) is the published Caddy HTTP port used for the health check.
-# shellcheck disable=SC2029  # the remote command is meant to expand dir/user on this side
+# shellcheck disable=SC2029
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/../.."
 HOSTOS="${DOCKCAST_HOMESERVER_OS:-windows}"
