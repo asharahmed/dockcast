@@ -713,3 +713,30 @@ gh variable set DEPLOY_TARGET --body homeserver
 
 From then on every green push to `main` is live on the home server a few minutes later. The
 ephemeral runner node is removed from the tailnet when the job ends.
+
+### 16.1 Cutover to a Linux home server (Ubuntu + Docker Engine)
+
+The rollout job picks its script from the repository variable `HOMESERVER_OS`: unset or `windows`
+runs `rollout-homeserver.ps1` exactly as above; `linux` runs `infra/scripts/rollout-homeserver.sh
+--sha <commit>`, which behaves the same (fetch tarball, refresh the directory, leave `infra/.env`
+alone, `pull`, `up -d --remove-orphans`, wait up to 120 s for `dockcast-api-1` to be healthy).
+
+1. On the new host: install Docker Engine and the compose plugin, create the directory
+   (`sudo mkdir -p /srv/dockcast && sudo chown <user> /srv/dockcast`), add the ssh user to the
+   `docker` group, and authorise the deploy key in `~/.ssh/authorized_keys`. Copy `infra/.env` from
+   the old server into `/srv/dockcast/infra/.env` (keep `GHCR_OWNER=asharahmed`) and restore the data
+   volumes from a backup (`infra/scripts/restore.sh`).
+2. `DOCKER_SOCK_GID`: `worker-train` mounts `/var/run/docker.sock` and joins the group that owns it,
+   which is `docker` on Linux. The rollout script exports `stat -c %g /var/run/docker.sock` when
+   neither the environment nor `infra/.env` sets `DOCKER_SOCK_GID`. `install.sh` writes the same
+   value into a new `.env`. To pin it instead, add `DOCKER_SOCK_GID=$(getent group docker | cut -d: -f3)`
+   to `infra/.env`.
+3. Point the secrets `HOMESERVER_HOST` and `HOMESERVER_USER` at the new host, and update the
+   Tailscale grant if the node name changed (`tcp:22` from `tag:ci`).
+4. Set the variables: `gh variable set HOMESERVER_OS --body linux`. The directory defaults to
+   `/srv/dockcast`; for another path also `gh variable set HOMESERVER_DIR --body <path>`.
+5. Re-run the latest deploy workflow (or push to `main`) and check the rollout log.
+
+For ad-hoc deploys from a workstation, `deploy-homeserver.sh` takes `DOCKCAST_HOMESERVER_OS=linux`
+(with `DOCKCAST_HOMESERVER=user@host` and optionally `DOCKCAST_HOMESERVER_DIR`, default `/srv/dockcast`).
+To roll back to Windows, unset `HOMESERVER_OS` and `HOMESERVER_DIR`.
