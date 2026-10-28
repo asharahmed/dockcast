@@ -20,6 +20,9 @@ export function Footer() {
         <Link to="/privacy" className="inline-flex min-h-11 items-center underline underline-offset-4 hover:text-ink">
           {COPY.shell.privacy}
         </Link>
+        <Link to="/status" className="inline-flex min-h-11 items-center underline underline-offset-4 hover:text-ink">
+          {COPY.shell.status}
+        </Link>
       </p>
       <div className="flex items-center gap-4">
         <SegmentedControl

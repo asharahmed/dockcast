@@ -43,6 +43,7 @@ export const COPY = {
     healthDown: 'API unreachable',
     footerTagline: 'Bike-share forecasts from open data.',
     privacy: 'Privacy',
+    status: 'Status',
   },
   offline: "You're offline. Showing the last data we had.",
   pwa: {

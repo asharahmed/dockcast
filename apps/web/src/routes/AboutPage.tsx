@@ -74,6 +74,13 @@ export default function AboutPage() {
           </Link>{' '}
           has the details.
         </p>
+        <p className="text-ink-2">
+          Curious how the nightly training run is going?{' '}
+          <Link to="/status" className="text-signal underline underline-offset-4">
+            The status page
+          </Link>{' '}
+          shows it live.
+        </p>
       </section>
 
       <section className="flex flex-col gap-3">

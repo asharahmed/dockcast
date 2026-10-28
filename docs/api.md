@@ -20,7 +20,7 @@ Error envelope (always):
 | 403 | `forbidden` | resource belongs to another user |
 | 404 | `not_found` | unknown city/station/commute |
 | 409 | `conflict` | email already registered; duplicate push endpoint |
-| 429 | `rate_limited` | auth endpoints: 10 req / 15 min / IP; trip: 60 req / min / IP |
+| 429 | `rate_limited` | auth endpoints: 10 req / 15 min / IP; trip: 60 req / min / IP; status: 120 req / min / IP |
 | 503 | `service_unavailable` | health failing / DB down |
 | 500 | `internal_error` | anything else (logged with request id) |
 
@@ -54,6 +54,21 @@ Implemented once in `apps/api/src/forecast/lookup.ts`, unit-tested (T18 in ml-sp
 200 `{ ok: true, version: string, db: true, collector_last_ok_at: string|null, predictor_last_run_at: string|null }`
 503 with `ok:false` if DB unreachable. (Does **not** fail on stale collector; that is surfaced on `/model`.)
 Schema: `HealthResponse`.
+
+### GET /status  — no-store, rate-limited (120 req / min / IP), public
+Feeds the `/status` page (ui-spec §4.10). Schema: `StatusResponse` (`packages/shared/src/api/status.ts`).
+```
+{ generated_at,
+  train: { current: StatusTrainCurrent | null, history: StatusTrainRun[≤14], last_finished_age_s: int|null },
+  services: { predict:{age_s,ok}, collector:{age_s,ok}, db:{ok}, api:{version, git_sha: string|null} } }
+```
+- `train.current` is the newest `worker_runs` row with `kind='train'` when it is unfinished and started less than 12 h ago, else `null`. Fields: `started_at`, `phase` (the phase being worked on, i.e. the one after the last finished marker; `null` after the last), `phases[{phase, ts, peak_rss_mib}]` (finished phases), `attempt`/`max_attempts` (from `TRAIN_ATTEMPT`/`TRAIN_MAX_ATTEMPTS`, null if unknown), `elapsed_s`, `percent`, `eta_s`, `state: 'running'|'stalled'`.
+- `percent`/`eta_s` come from the most recent successful train run that recorded phases: each phase's offset from that run's start, and its total duration. The current run is anchored at its last finished phase that the reference also has, then interpolated by wall time up to the reference's next phase boundary. `percent` is capped at 97; `null` (with `eta_s: null`) when no reference exists.
+- `state` is `stalled` when no progress write (phase marker or the 30 s heartbeat) arrived for more than 10 minutes, which means the trainer process most likely died (OOM kill). A stalled run's `elapsed_s` is frozen at its last write.
+- `train.history`: the last 14 train runs, newest first: `{started_at, duration_s, ok, attempt, peak_rss_mib, gate_passed, val_brier_bike, val_brier_dock, gbm_status}`. `ok` is `null` while unfinished or if the run never finished. The gbm `model_versions` row is joined on `city_id` and `summary.trained_for_date`; those columns are `null` when no such row exists. An OOM-killed attempt leaves its own unfinished row (`ok: null`); the retry is a separate row.
+- `services.*.age_s` is seconds since the last finished predict run / last collector `station_status` success (`feed_state.last_ok_at`); `ok` is `true` when fresh (collector <= 5 min; predict <= 30 min and the run succeeded), `null` when there is no data. `git_sha` is the first 7 hex characters of the `GIT_SHA` env var when the deploy sets one, else `null`.
+- **Sanitized by construction.** The route never selects `worker_runs.error`, and it rebuilds progress from the stored JSON: phase names must be in `TRAIN_PHASES` (`packages/shared/src/constants.ts`), everything else is a number, timestamp, boolean or enum. Nothing from the summary other than those values is forwarded.
+- 503 with `services.db.ok:false`, `train.current:null` and an empty history when the database is unreachable.
 
 ## 2. Cities & stations (public)
 

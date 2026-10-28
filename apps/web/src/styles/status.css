@@ -1,0 +1,99 @@
+/* `/status` is intentionally terminal-styled and does not follow the light/dark theme. */
+.term {
+  --t-bg: #0b0e11;
+  --t-fg: #c9d1d9;
+  --t-dim: #7d8590;
+  --t-green: #3fb950;
+  --t-red: #f85149;
+  --t-amber: #d29922;
+  --t-cyan: #58a6ff;
+  background: var(--t-bg);
+  color: var(--t-fg);
+  font-family: ui-monospace, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+  font-size: 13px;
+  line-height: 1.55;
+  min-height: 100%;
+  padding: var(--sp-5) var(--gutter) var(--sp-7);
+}
+@media (min-width: 640px) {
+  .term {
+    font-size: 14px;
+  }
+}
+.term-inner {
+  max-width: 88ch;
+  margin: 0 auto;
+}
+.term h1 {
+  font: inherit;
+  font-weight: 700;
+  margin: 0 0 var(--sp-4);
+  color: var(--t-fg);
+}
+.term h2 {
+  font: inherit;
+  font-weight: 700;
+  margin: var(--sp-5) 0 var(--sp-2);
+  color: var(--t-cyan);
+}
+.term h2::before {
+  content: '# ';
+  color: var(--t-dim);
+}
+.term .t-block {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.term .t-dim {
+  color: var(--t-dim);
+}
+.term .t-green {
+  color: var(--t-green);
+}
+.term .t-red {
+  color: var(--t-red);
+}
+.term .t-amber {
+  color: var(--t-amber);
+}
+.term .t-bar {
+  color: var(--t-green);
+  letter-spacing: 0;
+}
+.term .t-bar.t-stalled {
+  color: var(--t-red);
+}
+.term .t-scroll {
+  overflow-x: auto;
+  max-width: 100%;
+  padding-bottom: var(--sp-1);
+}
+.term .t-scroll pre {
+  margin: 0;
+  white-space: pre;
+  width: max-content;
+}
+.term .t-cursor {
+  display: inline-block;
+  width: 0.6em;
+  height: 1.05em;
+  margin-left: 2px;
+  vertical-align: text-bottom;
+  background: var(--t-fg);
+  animation: t-blink 1.06s steps(1) infinite;
+}
+@keyframes t-blink {
+  50% {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .term .t-cursor {
+    animation: none;
+  }
+}
+.term a {
+  color: var(--t-cyan);
+  text-underline-offset: 3px;
+}

@@ -12,6 +12,7 @@ import {
   stationDetailResponseFixture,
   stationHistoryResponseFixture,
   healthResponseFixture,
+  statusResponseFixture,
   userResponseFixture,
   tripResponseGoodFixture,
   modelResponseFixture,
@@ -28,6 +29,8 @@ let signedIn = false;
 
 export const handlers = [
   http.get('/api/v1/health', () => HttpResponse.json(healthResponseFixture)),
+
+  http.get('/api/v1/status', () => HttpResponse.json(statusResponseFixture)),
 
   http.get('/api/v1/cities', () => HttpResponse.json(cityListResponseFixture)),
 

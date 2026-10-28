@@ -11,6 +11,7 @@ import pandas as pd
 import psycopg
 from psycopg.rows import dict_row, tuple_row
 
+from dockcast_ml import progress
 from dockcast_ml.config import Config
 
 
@@ -165,6 +166,13 @@ def _narrow(df: pd.DataFrame, dtypes: Mapping[str, str] | None) -> pd.DataFrame:
     return df.astype(present) if present else df
 
 
+def _finish_progress(recorder: progress.ProgressRecorder, summary: dict[str, Any]) -> None:
+    """Stop live progress and keep its last state in the final summary."""
+    progress.activate(None)
+    recorder.stop()
+    summary["progress"] = recorder.snapshot()
+
+
 @contextmanager
 def worker_run(cfg: Config, kind: str, city_id: int | None) -> Iterator[dict[str, Any]]:
     """Record a `worker_runs` row for the lifetime of the `with` block.
@@ -186,9 +194,17 @@ def worker_run(cfg: Config, kind: str, city_id: int | None) -> Iterator[dict[str
             assert row is not None
             run_id = row[0]
 
+        recorder: progress.ProgressRecorder | None = None
+        if kind == "train":
+            recorder = progress.ProgressRecorder(cfg.database_url, run_id)
+            recorder.start()
+            progress.activate(recorder)
+
         try:
             yield summary
         except Exception as exc:
+            if recorder is not None:
+                _finish_progress(recorder, summary)
             with conn.cursor() as cur:
                 cur.execute(
                     "UPDATE worker_runs SET finished_at=now(), ok=false, error=%s, "
@@ -197,6 +213,8 @@ def worker_run(cfg: Config, kind: str, city_id: int | None) -> Iterator[dict[str
                 )
             raise
         else:
+            if recorder is not None:
+                _finish_progress(recorder, summary)
             with conn.cursor() as cur:
                 cur.execute(
                     "UPDATE worker_runs SET finished_at=now(), ok=true, summary=%s::jsonb WHERE id=%s",

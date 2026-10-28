@@ -15,6 +15,8 @@ import logging
 import resource
 import sys
 
+from dockcast_ml import progress
+
 
 def _mib(n_bytes: int) -> float:
     return round(n_bytes / 1048576, 1)
@@ -38,16 +40,16 @@ def _current_rss_bytes() -> int | None:
 
 
 def log_memory(logger: logging.Logger, phase: str) -> None:
-    """Log the current and peak RSS (MiB) of this process after `phase`."""
+    """Log the current and peak RSS (MiB) of this process after `phase`, and persist the marker
+    as live progress when a train `worker_run` is active (`dockcast_ml.progress`)."""
     rss = _current_rss_bytes()
+    rss_mib = None if rss is None else _mib(rss)
+    peak_mib = _mib(_peak_rss_bytes())
     logger.info(
         "train_memory",
-        extra={
-            "phase": phase,
-            "rss_mib": None if rss is None else _mib(rss),
-            "peak_rss_mib": _mib(_peak_rss_bytes()),
-        },
+        extra={"phase": phase, "rss_mib": rss_mib, "peak_rss_mib": peak_mib},
     )
+    progress.record_phase(phase, rss_mib, peak_mib)
 
 
 def release() -> None:
