@@ -53,8 +53,9 @@ jobs:
             docker image prune -f
             docker compose ps
   rollout-homeserver:
-    # Windows + Docker Desktop host reachable only over Tailscale (docs/infra.md §16): the runner
-    # joins the tailnet as an ephemeral tag:ci node, then runs infra/scripts/rollout-homeserver.ps1
+    # Windows + Docker Desktop host (default) or Linux + Docker Engine host (repo variable
+    # HOMESERVER_OS=linux) reachable only over Tailscale (docs/infra.md §16): the runner joins the
+    # tailnet as an ephemeral tag:ci node, then runs infra/scripts/rollout-homeserver.ps1 (or .sh)
     # on the host, which fetches this commit's tarball, pulls the images just pushed and restarts.
     if: ${{ vars.DEPLOY_TARGET == 'homeserver' }}
     needs: images
@@ -73,8 +74,16 @@ jobs:
           USER: ${{ secrets.HOMESERVER_USER }}
           KEY: ${{ secrets.HOMESERVER_SSH_KEY }}
           SHA: ${{ github.event.workflow_run.head_sha }}
+          HOMESERVER_OS: ${{ vars.HOMESERVER_OS || 'windows' }}
+          HOMESERVER_DIR: ${{ vars.HOMESERVER_DIR }}
         run: |
           mkdir -p ~/.ssh && printf '%s\n' "$KEY" > ~/.ssh/deploy_key && chmod 600 ~/.ssh/deploy_key
           opts="-o StrictHostKeyChecking=accept-new -o ConnectTimeout=20 -i $HOME/.ssh/deploy_key"
-          scp $opts infra/scripts/rollout-homeserver.ps1 "$USER@$HOST:rollout-homeserver.ps1"
-          ssh $opts "$USER@$HOST" "powershell -NoProfile -ExecutionPolicy Bypass -File rollout-homeserver.ps1 -Sha $SHA"
+          if [ "$HOMESERVER_OS" = linux ]; then
+            dir_arg=""; [ -n "$HOMESERVER_DIR" ] && dir_arg=" --dir $HOMESERVER_DIR"
+            scp $opts infra/scripts/rollout-homeserver.sh "$USER@$HOST:rollout-homeserver.sh"
+            ssh $opts "$USER@$HOST" "bash rollout-homeserver.sh --sha $SHA$dir_arg"
+          else
+            scp $opts infra/scripts/rollout-homeserver.ps1 "$USER@$HOST:rollout-homeserver.ps1"
+            ssh $opts "$USER@$HOST" "powershell -NoProfile -ExecutionPolicy Bypass -File rollout-homeserver.ps1 -Sha $SHA"
+          fi
