@@ -75,11 +75,11 @@ export default function AboutPage() {
           has the details.
         </p>
         <p className="text-ink-2">
-          Curious how the nightly training run is going?{' '}
+          Curious how DockCast is doing right now?{' '}
           <Link to="/status" className="text-signal underline underline-offset-4">
             The status page
           </Link>{' '}
-          shows it live.
+          shows what is running and how it has held up lately.
         </p>
       </section>
 

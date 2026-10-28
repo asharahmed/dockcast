@@ -213,69 +213,36 @@ export const healthResponseFixture: HealthResponse = {
 };
 
 export const statusResponseFixture: StatusResponse = {
-  generated_at: '2026-08-17T07:42:00Z',
-  train: {
-    current: {
-      started_at: '2026-08-17T07:30:00Z',
-      phase: 'feature_matrices',
-      phases: [
-        { phase: 'labels', ts: '2026-08-17T07:31:00Z', peak_rss_mib: 640 },
-        { phase: 'serving_profile', ts: '2026-08-17T07:33:00Z', peak_rss_mib: 900 },
-        { phase: 'bd_calibration', ts: '2026-08-17T07:36:00Z', peak_rss_mib: 2140 },
-        { phase: 'train_profile', ts: '2026-08-17T07:38:00Z', peak_rss_mib: 2140 },
-        { phase: 'row_counts', ts: '2026-08-17T07:38:30Z', peak_rss_mib: 2140 },
-        { phase: 'feature_build', ts: '2026-08-17T07:40:00Z', peak_rss_mib: 2300 },
-      ],
-      attempt: 1,
-      max_attempts: 6,
-      elapsed_s: 720,
-      percent: 42.5,
-      eta_s: 960,
-      state: 'running',
-    },
-    history: [
-      {
-        started_at: '2026-08-17T07:30:00Z',
-        duration_s: null,
-        ok: null,
-        attempt: 1,
-        peak_rss_mib: 2300,
-        gate_passed: null,
-        val_brier_bike: null,
-        val_brier_dock: null,
-        gbm_status: null,
-      },
-      {
-        started_at: '2026-08-16T07:30:00Z',
-        duration_s: 1680,
-        ok: true,
-        attempt: 2,
-        peak_rss_mib: 5600,
-        gate_passed: true,
-        val_brier_bike: 0.0812,
-        val_brier_dock: 0.0934,
-        gbm_status: 'active',
-      },
-      {
-        started_at: '2026-08-15T07:30:00Z',
-        duration_s: 1500,
-        ok: false,
-        attempt: 6,
-        peak_rss_mib: 4100,
-        gate_passed: null,
-        val_brier_bike: null,
-        val_brier_dock: null,
-        gbm_status: null,
-      },
+  overall: 'operational',
+  website: { state: 'operational', latency: 'fast' },
+  stations: { state: 'operational', updated_min_ago: 1 },
+  forecasts: { state: 'operational', updated_min_ago: 4 },
+  models: {
+    state: 'operational',
+    last_update_date: '2026-08-16',
+    running: { percent: 42, stage: 'training', eta_min: 16 },
+  },
+  database: { state: 'operational' },
+  release: {
+    deployed_ago: { value: 3, unit: 'days' },
+    uptime_7d: 99.9,
+    uptime_30d: 99.7,
+  },
+  history: {
+    days: [
+      '2026-08-04', '2026-08-05', '2026-08-06', '2026-08-07', '2026-08-08', '2026-08-09', '2026-08-10',
+      '2026-08-11', '2026-08-12', '2026-08-13', '2026-08-14', '2026-08-15', '2026-08-16', '2026-08-17',
     ],
-    last_finished_age_s: 85000,
+    website: ['none', 'none', 'ok', 'ok', 'ok', 'ok', 'ok', 'down', 'ok', 'ok', 'ok', 'ok', 'ok', 'ok'],
+    stations: ['none', 'none', 'ok', 'ok', 'ok', 'ok', 'ok', 'ok', 'ok', 'ok', 'down', 'ok', 'ok', 'ok'],
+    forecasts: ['none', 'none', 'ok', 'ok', 'ok', 'ok', 'ok', 'ok', 'ok', 'ok', 'ok', 'ok', 'ok', 'ok'],
+    database: ['none', 'none', 'ok', 'ok', 'ok', 'ok', 'ok', 'ok', 'ok', 'ok', 'ok', 'ok', 'ok', 'ok'],
   },
-  services: {
-    predict: { age_s: 240, ok: true },
-    collector: { age_s: 41, ok: true },
-    db: { ok: true },
-    api: { version: '0.1.0', git_sha: 'a0e5ae7' },
-  },
+  model_updates: [
+    { date: '2026-08-16', ok: true, duration_min: 28 },
+    { date: '2026-08-15', ok: false, duration_min: 25 },
+    { date: '2026-08-14', ok: true, duration_min: 27 },
+  ],
 };
 
 export const userResponseFixture: UserResponse = {

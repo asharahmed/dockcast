@@ -400,12 +400,12 @@ export function useTestPush() {
   });
 }
 
-/** Polling cadence for `GET /status`: fast while a train run is active, slow otherwise. */
-export const STATUS_POLL_ACTIVE_MS = 5_000;
+/** Polling cadence for `GET /status`: the server refreshes its snapshot every 15 s, so never poll faster. */
+export const STATUS_POLL_ACTIVE_MS = 15_000;
 export const STATUS_POLL_IDLE_MS = 60_000;
 
 /**
- * `GET /status`. Refetches every 5 s while a train run is active and every 60 s otherwise;
+ * `GET /status`. Refetches every 15 s while a model update is running and every 60 s otherwise;
  * react-query pauses interval refetches while the tab is hidden and refetches on refocus.
  */
 export function useStatus() {
@@ -413,7 +413,7 @@ export function useStatus() {
     queryKey: queryKeys.status,
     queryFn: () => apiGet<StatusResponse>('/status', schemas.statusResponse),
     refetchInterval: (query) =>
-      query.state.data?.train.current ? STATUS_POLL_ACTIVE_MS : STATUS_POLL_IDLE_MS,
+      query.state.data?.models.running ? STATUS_POLL_ACTIVE_MS : STATUS_POLL_IDLE_MS,
     refetchIntervalInBackground: false,
   });
 }

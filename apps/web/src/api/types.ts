@@ -5,8 +5,6 @@ export type {
   ErrorResponse,
   HealthResponse,
   StatusResponse,
-  StatusTrainCurrent,
-  StatusTrainRun,
   City,
   CityListResponse,
   StationRef,

@@ -97,3 +97,10 @@
   color: var(--t-cyan);
   text-underline-offset: 3px;
 }
+.term .t-cyan {
+  color: var(--t-cyan);
+}
+.term .t-lg {
+  font-size: 1.1em;
+  font-weight: 700;
+}
