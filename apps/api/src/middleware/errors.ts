@@ -64,6 +64,17 @@ export const errorHandler: ErrorRequestHandler = (err, req, res, next) => {
     res.status(400).json(envelope('validation_error', 'Invalid request', err.flatten()));
     return;
   }
+  // body-parser failures (malformed JSON, oversized body) are the client's fault; answer with a
+  // fixed message, never the parser's text.
+  const parseErr = err as { type?: unknown };
+  if (parseErr.type === 'entity.parse.failed') {
+    res.status(400).json(envelope('validation_error', 'Malformed request body'));
+    return;
+  }
+  if (parseErr.type === 'entity.too.large') {
+    res.status(413).json(envelope('payload_too_large', 'Request body too large'));
+    return;
+  }
   req.log?.error({ err }, 'unhandled error');
   res.status(500).json(envelope('internal_error', 'Internal server error'));
 };

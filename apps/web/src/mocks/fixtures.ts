@@ -207,7 +207,6 @@ export const stationHistoryResponseFixture: StationHistoryResponse = {
 
 export const healthResponseFixture: HealthResponse = {
   ok: true,
-  version: '0.1.0',
   db: true,
   collector_last_ok_at: '2026-08-17T12:00:00Z',
   predictor_last_run_at: '2026-08-17T12:00:00Z',

@@ -9,7 +9,6 @@ import {
   getGlobalCollectorLastOkAt,
   getGlobalPredictorLastRunAt,
 } from '../services/worker.queries.js';
-import { API_VERSION } from '../version.js';
 
 export function healthRouter(deps: RouteDeps): Router {
   const router = Router();
@@ -22,7 +21,6 @@ export function healthRouter(deps: RouteDeps): Router {
       ]);
       const body: HealthResponse = {
         ok: true,
-        version: API_VERSION,
         db: true,
         collector_last_ok_at: collectorLastOkAt ? collectorLastOkAt.toISOString() : null,
         predictor_last_run_at: predictorLastRunAt ? predictorLastRunAt.toISOString() : null,
@@ -32,7 +30,6 @@ export function healthRouter(deps: RouteDeps): Router {
       req.log.warn({ err }, 'health check: database unreachable');
       const body: HealthResponse = {
         ok: false,
-        version: API_VERSION,
         db: false,
         collector_last_ok_at: null,
         predictor_last_run_at: null,

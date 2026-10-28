@@ -51,7 +51,7 @@ Implemented once in `apps/api/src/forecast/lookup.ts`, unit-tested (T18 in ml-sp
 ## 1. System
 
 ### GET /health  — no cache
-200 `{ ok: true, version: string, db: true, collector_last_ok_at: string|null, predictor_last_run_at: string|null }`
+200 `{ ok: true, db: true, collector_last_ok_at: string|null, predictor_last_run_at: string|null }`
 503 with `ok:false` if DB unreachable. (Does **not** fail on stale collector; that is surfaced on `/model`.)
 Schema: `HealthResponse`.
 
