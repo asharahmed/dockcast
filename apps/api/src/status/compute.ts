@@ -1,45 +1,26 @@
 /**
- * Pure computation behind `GET /status` (`docs/api.md` §1): turns `worker_runs` rows into the
- * public training view. Everything read from the stored `summary.progress` JSON is re-validated
- * here and rebuilt from allowlisted names, numbers and dates, so nothing else in a run's summary
- * (or its `error` text) can reach the response.
+ * Pure computation behind `GET /status`: turns a sanitized `worker_runs` progress record into the
+ * public "model update in progress" view. The SQL already reduces the stored progress to phase
+ * names and timestamps (`services/status.queries.ts`); everything is re-validated here against the
+ * phase allowlist, and only a coarse stage, a whole percent and whole minutes leave this module.
  */
-import {
-  TRAIN_PHASES,
-  type StatusTrainCurrent,
-  type StatusTrainRun,
-  type TrainPhase,
-} from '@dockcast/shared';
+import type { StatusStage } from '@dockcast/shared';
+import { FINAL_STAGE, STAGE_OF_PHASE, TRAIN_PHASES, type TrainPhase } from './stage.js';
 
 /** No progress write (marker or 30 s heartbeat) for this long means the trainer process is gone. */
 export const STALL_AFTER_S = 600;
-/** The percent bar never claims completion; only a finished run does. */
+/** The percent never claims completion; only a finished run does. */
 export const PERCENT_CAP = 97;
-/** An unfinished run older than this is history, not "current". */
-export const CURRENT_MAX_AGE_S = 12 * 3600;
+/** An unfinished run older than this is history, not "running". */
+export const RUNNING_MAX_AGE_S = 12 * 3600;
 
 export interface ParsedPhase {
   phase: TrainPhase;
   ts: Date;
-  peakRssMib: number | null;
 }
-
 export interface ParsedProgress {
   phases: ParsedPhase[];
-  attempt: number | null;
-  maxAttempts: number | null;
   updatedAt: Date | null;
-}
-
-export interface TrainRunRow {
-  started_at: Date;
-  finished_at: Date | null;
-  ok: boolean | null;
-  progress: unknown;
-  gate_passed: boolean | null;
-  val_brier_bike: number | null;
-  val_brier_dock: number | null;
-  gbm_status: StatusTrainRun['gbm_status'];
 }
 
 const PHASE_SET: ReadonlySet<string> = new Set(TRAIN_PHASES);
@@ -50,21 +31,11 @@ function asDate(v: unknown): Date | null {
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
-function asNum(v: unknown): number | null {
-  return typeof v === 'number' && Number.isFinite(v) && v >= 0 && v < 1e7 ? v : null;
-}
-
-function asSmallInt(v: unknown): number | null {
-  return typeof v === 'number' && Number.isInteger(v) && v >= 1 && v <= 99 ? v : null;
-}
-
-/** Defensive parse of `summary.progress`; unknown phases and malformed entries are dropped. */
+/** Defensive parse; unknown phase names and malformed entries are dropped. */
 export function parseProgress(raw: unknown): ParsedProgress {
-  const out: ParsedProgress = { phases: [], attempt: null, maxAttempts: null, updatedAt: null };
+  const out: ParsedProgress = { phases: [], updatedAt: null };
   if (typeof raw !== 'object' || raw === null) return out;
   const r = raw as Record<string, unknown>;
-  out.attempt = asSmallInt(r.attempt);
-  out.maxAttempts = asSmallInt(r.max_attempts);
   out.updatedAt = asDate(r.updated_at);
   if (Array.isArray(r.phases)) {
     const byPhase = new Map<TrainPhase, ParsedPhase>();
@@ -73,11 +44,7 @@ export function parseProgress(raw: unknown): ParsedProgress {
       const e = p as Record<string, unknown>;
       const ts = asDate(e.ts);
       if (typeof e.phase !== 'string' || !PHASE_SET.has(e.phase) || !ts) continue;
-      byPhase.set(e.phase as TrainPhase, {
-        phase: e.phase as TrainPhase,
-        ts,
-        peakRssMib: asNum(e.peak_rss_mib),
-      });
+      byPhase.set(e.phase as TrainPhase, { phase: e.phase as TrainPhase, ts });
     }
     out.phases = [...byPhase.values()].sort((a, b) => a.ts.getTime() - b.ts.getTime());
   }
@@ -85,11 +52,6 @@ export function parseProgress(raw: unknown): ParsedProgress {
 }
 
 const secs = (a: Date, b: Date): number => Math.max(0, Math.round((a.getTime() - b.getTime()) / 1000));
-
-function peakOf(p: ParsedProgress): number | null {
-  const peaks = p.phases.map((x) => x.peakRssMib).filter((x): x is number => x !== null);
-  return peaks.length ? Math.max(...peaks) : null;
-}
 
 /** Offsets (seconds from run start) at which a successful run finished each phase, plus its total. */
 export interface Reference {
@@ -113,11 +75,18 @@ export function buildReference(run: {
   return offsets.size ? { offsets, total_s: total } : null;
 }
 
-export function buildCurrent(
+export interface Running {
+  stalled: boolean;
+  percent: number | null;
+  stage: StatusStage;
+  eta_min: number | null;
+}
+
+export function buildRunning(
   run: { started_at: Date; progress: unknown },
   reference: Reference | null,
   now: Date,
-): StatusTrainCurrent {
+): Running {
   const prog = parseProgress(run.progress);
   const last = prog.phases[prog.phases.length - 1];
   const lastWrite = prog.updatedAt ?? last?.ts ?? run.started_at;
@@ -126,10 +95,11 @@ export function buildCurrent(
   const clock = stalled ? lastWrite : now;
 
   const lastIdx = last ? TRAIN_PHASES.indexOf(last.phase) : -1;
-  const phase = TRAIN_PHASES[lastIdx + 1] ?? null;
+  const next = TRAIN_PHASES[lastIdx + 1];
+  const stage = next ? STAGE_OF_PHASE[next] : FINAL_STAGE;
 
   let percent: number | null = null;
-  let eta: number | null = null;
+  let etaMin: number | null = null;
   if (reference) {
     // Anchor on the latest finished phase that the reference run also has.
     let anchorOffset = 0;
@@ -150,38 +120,8 @@ export function buildCurrent(
     }
     const inPhase = Math.min(secs(clock, anchorTs), Math.max(0, bound - anchorOffset));
     const pos = anchorOffset + inPhase;
-    percent = Math.round(Math.min(PERCENT_CAP, (100 * pos) / reference.total_s) * 10) / 10;
-    eta = Math.max(0, Math.round(reference.total_s - pos));
+    percent = Math.round(Math.min(PERCENT_CAP, (100 * pos) / reference.total_s));
+    etaMin = Math.max(0, Math.round((reference.total_s - pos) / 60));
   }
-
-  return {
-    started_at: run.started_at.toISOString(),
-    phase,
-    phases: prog.phases.map((p) => ({
-      phase: p.phase,
-      ts: p.ts.toISOString(),
-      peak_rss_mib: p.peakRssMib,
-    })),
-    attempt: prog.attempt,
-    max_attempts: prog.maxAttempts,
-    elapsed_s: secs(clock, run.started_at),
-    percent,
-    eta_s: eta,
-    state: stalled ? 'stalled' : 'running',
-  };
-}
-
-export function buildHistoryRow(row: TrainRunRow): StatusTrainRun {
-  const prog = parseProgress(row.progress);
-  return {
-    started_at: row.started_at.toISOString(),
-    duration_s: row.finished_at ? secs(row.finished_at, row.started_at) : null,
-    ok: row.finished_at ? row.ok : null,
-    attempt: prog.attempt,
-    peak_rss_mib: peakOf(prog),
-    gate_passed: row.gate_passed,
-    val_brier_bike: row.val_brier_bike,
-    val_brier_dock: row.val_brier_dock,
-    gbm_status: row.gbm_status,
-  };
+  return { stalled, percent, stage, eta_min: etaMin };
 }

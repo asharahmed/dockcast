@@ -1,72 +1,94 @@
 /**
- * `docs/api.md` §1 — GET /status. Public, so every field is a number, timestamp, boolean, enum or
- * a phase name from the fixed {@link TRAIN_PHASES} allowlist; never error text or environment.
+ * `docs/api.md` §1 — GET /status. Public, so the schema is an allowlist: every object is
+ * `.strict()` and every leaf is a coarse enum, a small integer, a percentage, or a `YYYY-MM-DD`
+ * date. No timestamps with a time of day, no names, versions, error text or resource numbers.
+ * See `docs/api.md` "Public status page threat model".
  */
 import { z } from 'zod';
-import { TRAIN_PHASES } from '../constants.js';
 
-const ts = z.string().datetime({ offset: true });
+export const statusStateSchema = z.enum(['operational', 'degraded', 'down']);
+export type StatusState = z.infer<typeof statusStateSchema>;
 
-export const trainPhaseNameSchema = z.enum(TRAIN_PHASES);
+const dateOnly = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 
-export const statusPhaseSchema = z.object({
-  phase: trainPhaseNameSchema,
-  ts,
-  peak_rss_mib: z.number().nullable(),
-});
-export type StatusPhase = z.infer<typeof statusPhaseSchema>;
+/** The only trainer stages ever shown; internal phases are mapped onto these server-side. */
+export const STATUS_STAGES = ['preparing data', 'training', 'evaluating', 'publishing'] as const;
+export const statusStageSchema = z.enum(STATUS_STAGES);
+export type StatusStage = z.infer<typeof statusStageSchema>;
 
-export const statusTrainCurrentSchema = z.object({
-  started_at: ts,
-  /** The phase being worked on now (the one after the last finished marker). */
-  phase: trainPhaseNameSchema.nullable(),
-  /** Finished phases, oldest first. */
-  phases: z.array(statusPhaseSchema),
-  attempt: z.number().int().nullable(),
-  max_attempts: z.number().int().nullable(),
-  elapsed_s: z.number().int(),
-  /** 0..97 while running; `null` when there is no successful reference run to compare against. */
-  percent: z.number().min(0).max(100).nullable(),
-  eta_s: z.number().int().nullable(),
-  state: z.enum(['running', 'stalled']),
-});
-export type StatusTrainCurrent = z.infer<typeof statusTrainCurrentSchema>;
+/** One day of one component: `ok` (>= 99% of the day's minutes up), `down`, or `none` (no data). */
+export const statusDayCellSchema = z.enum(['ok', 'down', 'none']);
+export type StatusDayCell = z.infer<typeof statusDayCellSchema>;
 
-export const statusTrainRunSchema = z.object({
-  started_at: ts,
-  duration_s: z.number().int().nullable(),
-  /** `null` while unfinished, or when the process died without finishing (stalled). */
-  ok: z.boolean().nullable(),
-  attempt: z.number().int().nullable(),
-  peak_rss_mib: z.number().nullable(),
-  gate_passed: z.boolean().nullable(),
-  val_brier_bike: z.number().nullable(),
-  val_brier_dock: z.number().nullable(),
-  gbm_status: z
-    .enum(['active', 'shadow', 'rejected', 'superseded', 'insufficient_data', 'failed'])
-    .nullable(),
-});
-export type StatusTrainRun = z.infer<typeof statusTrainRunSchema>;
+const freshness = z
+  .object({
+    state: statusStateSchema,
+    /** Whole minutes since the last successful update; `null` if there has never been one. */
+    updated_min_ago: z.number().int().min(0).nullable(),
+  })
+  .strict();
 
-export const statusServiceSchema = z.object({
-  /** Age in seconds of the last finished run / heartbeat; `null` if there is none. */
-  age_s: z.number().int().nullable(),
-  ok: z.boolean().nullable(),
-});
+export const statusRunningSchema = z
+  .object({
+    /** 0..97, whole numbers; `null` when there is no earlier successful run to compare against. */
+    percent: z.number().int().min(0).max(97).nullable(),
+    stage: statusStageSchema,
+    /** Whole minutes remaining, `null` when `percent` is. */
+    eta_min: z.number().int().min(0).nullable(),
+  })
+  .strict();
 
-export const statusResponseSchema = z.object({
-  generated_at: ts,
-  train: z.object({
-    current: statusTrainCurrentSchema.nullable(),
-    history: z.array(statusTrainRunSchema),
-    /** Seconds since the last finished train run, `null` if none. */
-    last_finished_age_s: z.number().int().nullable(),
-  }),
-  services: z.object({
-    predict: statusServiceSchema,
-    collector: statusServiceSchema,
-    db: z.object({ ok: z.boolean() }),
-    api: z.object({ version: z.string(), git_sha: z.string().nullable() }),
-  }),
-});
+export const statusModelUpdateSchema = z
+  .object({
+    date: dateOnly,
+    ok: z.boolean(),
+    /** Whole minutes; `null` if the run never finished. */
+    duration_min: z.number().int().min(0).nullable(),
+  })
+  .strict();
+export type StatusModelUpdate = z.infer<typeof statusModelUpdateSchema>;
+
+const days14 = z.array(statusDayCellSchema).length(14);
+
+export const statusResponseSchema = z
+  .object({
+    overall: statusStateSchema,
+    website: z
+      .object({ state: statusStateSchema, latency: z.enum(['fast', 'slow']).nullable() })
+      .strict(),
+    stations: freshness,
+    forecasts: freshness,
+    models: z
+      .object({
+        state: statusStateSchema,
+        /** UTC date of the last successful update. */
+        last_update_date: dateOnly.nullable(),
+        running: statusRunningSchema.nullable(),
+      })
+      .strict(),
+    database: z.object({ state: z.enum(['operational', 'down']) }).strict(),
+    release: z
+      .object({
+        /** Coarse age of the running release: minutes under 2 h, hours under 2 d, else days. */
+        deployed_ago: z
+          .object({ value: z.number().int().min(0), unit: z.enum(['minutes', 'hours', 'days']) })
+          .strict(),
+        uptime_7d: z.number().min(0).max(100).nullable(),
+        uptime_30d: z.number().min(0).max(100).nullable(),
+      })
+      .strict(),
+    history: z
+      .object({
+        /** The 14 UTC dates covered, oldest first; every component array lines up with it. */
+        days: z.array(dateOnly).length(14),
+        website: days14,
+        stations: days14,
+        forecasts: days14,
+        database: days14,
+      })
+      .strict(),
+    /** One row per UTC date, newest first, at most 14. */
+    model_updates: z.array(statusModelUpdateSchema).max(14),
+  })
+  .strict();
 export type StatusResponse = z.infer<typeof statusResponseSchema>;

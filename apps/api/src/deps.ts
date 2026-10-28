@@ -6,6 +6,7 @@ import type { Pool } from '@dockcast/db';
 import type { Logger } from 'pino';
 import type { Config } from './config.js';
 import type { PushTransport } from './alerts/sender.js';
+import type { LatencyTracker } from './status/latency.js';
 
 /**
  * Public `createApp(deps)` contract (`docs/plan.md` WP-7/WP-8). `now` is
@@ -21,6 +22,10 @@ export interface AppDeps {
   pushTransport?: PushTransport;
   /** Outbound HTTP for OAuth token exchange; defaults to global `fetch` — tests inject a fake. */
   fetchImpl?: typeof fetch;
+  /** When the running release started serving; defaults to process start. Shown only as a coarse age. */
+  deployedAt?: Date;
+  /** Shared with the status sampler; defaults to a private tracker. */
+  latency?: LatencyTracker;
 }
 
 /** What route factories receive: `AppDeps` with `now`/`pushTransport` resolved to concrete values. */

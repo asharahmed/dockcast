@@ -54,31 +54,3 @@ export type DayType = (typeof DAY_TYPE)[keyof typeof DAY_TYPE];
  * the feature list/order bumps this and forces retraining.
  */
 export const FEATURE_SCHEMA_VERSION = 1;
-
-/**
- * Nightly trainer phases in execution order, matching the `log_memory(logger, <phase>)` markers in
- * `ml/dockcast_ml/train.py` (`docs/worker-spec.md` §8.2). `GET /status` only ever reports phase
- * names from this list; each marker means "this phase just finished".
- */
-export const TRAIN_PHASES = [
-  'labels',
-  'serving_profile',
-  'bd_calibration',
-  'train_profile',
-  'row_counts',
-  'feature_build',
-  'feature_matrices',
-  'calibration',
-  'val_scoring',
-  'release',
-  'metrics_online',
-] as const;
-
-/** A single element of {@link TRAIN_PHASES}. */
-export type TrainPhase = (typeof TRAIN_PHASES)[number];
-
-/** Nightly trainer start, local wall-clock time in {@link TRAIN_SCHEDULE_TZ}. Mirrors `infra/supercronic/crontab`. */
-export const TRAIN_SCHEDULE_LOCAL = '03:30';
-
-/** Time zone of {@link TRAIN_SCHEDULE_LOCAL}. */
-export const TRAIN_SCHEDULE_TZ = 'America/Toronto';
