@@ -11,6 +11,7 @@ import type {
   StationDetailResponse,
   StationHistoryResponse,
   HealthResponse,
+  StatusResponse,
   UserResponse,
   TripResponse,
   ModelResponse,
@@ -206,10 +207,42 @@ export const stationHistoryResponseFixture: StationHistoryResponse = {
 
 export const healthResponseFixture: HealthResponse = {
   ok: true,
-  version: '0.1.0',
   db: true,
   collector_last_ok_at: '2026-08-17T12:00:00Z',
   predictor_last_run_at: '2026-08-17T12:00:00Z',
+};
+
+export const statusResponseFixture: StatusResponse = {
+  overall: 'operational',
+  website: { state: 'operational', latency: 'fast' },
+  stations: { state: 'operational', updated_min_ago: 1 },
+  forecasts: { state: 'operational', updated_min_ago: 4 },
+  models: {
+    state: 'operational',
+    last_update_date: '2026-08-16',
+    running: { percent: 42, stage: 'training', eta_min: 16 },
+  },
+  database: { state: 'operational' },
+  release: {
+    deployed_ago: { value: 3, unit: 'days' },
+    uptime_7d: 99.9,
+    uptime_30d: 99.7,
+  },
+  history: {
+    days: [
+      '2026-08-04', '2026-08-05', '2026-08-06', '2026-08-07', '2026-08-08', '2026-08-09', '2026-08-10',
+      '2026-08-11', '2026-08-12', '2026-08-13', '2026-08-14', '2026-08-15', '2026-08-16', '2026-08-17',
+    ],
+    website: ['none', 'none', 'ok', 'ok', 'ok', 'ok', 'ok', 'down', 'ok', 'ok', 'ok', 'ok', 'ok', 'ok'],
+    stations: ['none', 'none', 'ok', 'ok', 'ok', 'ok', 'ok', 'ok', 'ok', 'ok', 'down', 'ok', 'ok', 'ok'],
+    forecasts: ['none', 'none', 'ok', 'ok', 'ok', 'ok', 'ok', 'ok', 'ok', 'ok', 'ok', 'ok', 'ok', 'ok'],
+    database: ['none', 'none', 'ok', 'ok', 'ok', 'ok', 'ok', 'ok', 'ok', 'ok', 'ok', 'ok', 'ok', 'ok'],
+  },
+  model_updates: [
+    { date: '2026-08-16', ok: true, duration_min: 28 },
+    { date: '2026-08-15', ok: false, duration_min: 25 },
+    { date: '2026-08-14', ok: true, duration_min: 27 },
+  ],
 };
 
 export const userResponseFixture: UserResponse = {

@@ -38,6 +38,7 @@ describe.skipIf(!DATABASE_URL_TEST)('migrate() against a throwaway database', ()
       { version: 4, name: 'multi_city' },
       { version: 5, name: 'oauth_handshakes' },
       { version: 6, name: 'identity_linking' },
+      { version: 7, name: 'status_samples' },
     ]);
 
     const tables = await many<{ table_name: string }>(
@@ -65,7 +66,7 @@ describe.skipIf(!DATABASE_URL_TEST)('migrate() against a throwaway database', ()
     );
     const hyperNames = hypertables.map((r) => r.hypertable_name).sort();
     expect(hyperNames).toEqual(
-      ['forecast_history', 'forecast_labels', 'poll_log', 'station_snapshots'].sort(),
+      ['forecast_history', 'forecast_labels', 'poll_log', 'station_snapshots', 'status_samples'].sort(),
     );
   });
 
@@ -118,9 +119,10 @@ describe.skipIf(!DATABASE_URL_TEST)('migrate() concurrency', () => {
       { version: 4, name: 'multi_city' },
       { version: 5, name: 'oauth_handshakes' },
       { version: 6, name: 'identity_linking' },
+      { version: 7, name: 'status_samples' },
     ]);
 
     const count = await one<CountRow>(poolA, 'SELECT count(*)::int AS n FROM schema_migrations');
-    expect(count.n).toBe(6);
+    expect(count.n).toBe(7);
   });
 });

@@ -102,6 +102,8 @@ while :; do
   before=$(oom_kills); limit=$(current_limit)
   log "attempt $attempt/$MAX_ATTEMPTS: $TRAIN_CMD $* (memory.max=${limit:-unknown})"
   anonf=$(mktemp); sample_anon_peak "$anonf" & sampler=$!
+  # The trainer records these in worker_runs.summary.progress (dockcast_ml.progress).
+  export TRAIN_ATTEMPT=$attempt TRAIN_MAX_ATTEMPTS=$MAX_ATTEMPTS
   $TRAIN_CMD "$@"; rc=$?
   { kill "$sampler"; wait "$sampler"; } 2>/dev/null
   a=$(anon_bytes); anon_peak=$(cat "$anonf" 2>/dev/null || echo 0); rm -f "$anonf"

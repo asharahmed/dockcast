@@ -20,7 +20,7 @@ Error envelope (always):
 | 403 | `forbidden` | resource belongs to another user |
 | 404 | `not_found` | unknown city/station/commute |
 | 409 | `conflict` | email already registered; duplicate push endpoint |
-| 429 | `rate_limited` | auth endpoints: 10 req / 15 min / IP; trip: 60 req / min / IP |
+| 429 | `rate_limited` | auth endpoints: 10 req / 15 min / IP; trip: 60 req / min / IP; status: 120 req / min / IP |
 | 503 | `service_unavailable` | health failing / DB down |
 | 500 | `internal_error` | anything else (logged with request id) |
 
@@ -51,9 +51,63 @@ Implemented once in `apps/api/src/forecast/lookup.ts`, unit-tested (T18 in ml-sp
 ## 1. System
 
 ### GET /health  — no cache
-200 `{ ok: true, version: string, db: true, collector_last_ok_at: string|null, predictor_last_run_at: string|null }`
+200 `{ ok: true, db: true, collector_last_ok_at: string|null, predictor_last_run_at: string|null }`
 503 with `ok:false` if DB unreachable. (Does **not** fail on stale collector; that is surfaced on `/model`.)
 Schema: `HealthResponse`.
+
+### GET /status  — `public, max-age=10`, rate-limited per IP, public
+Feeds the `/status` page (ui-spec §4.10): the status of the whole app, including the current production instance. Schema: `StatusResponse` (`packages/shared/src/api/status.ts`); every object is `.strict()` and the response is an allowlist, so a new field must be added to the schema on purpose.
+```
+{ overall: 'operational'|'degraded'|'down',
+  website:   { state, latency: 'fast'|'slow'|null },
+  stations:  { state, updated_min_ago: int|null },
+  forecasts: { state, updated_min_ago: int|null },
+  models:    { state, last_update_date: 'YYYY-MM-DD'|null,
+               running: { percent: int|null, stage: 'preparing data'|'training'|'evaluating'|'publishing', eta_min: int|null } | null },
+  database:  { state: 'operational'|'down' },
+  release:   { deployed_ago: { value: int, unit: 'minutes'|'hours'|'days' }, uptime_7d: number|null, uptime_30d: number|null },
+  history:   { days: string[14], website: Cell[14], stations: Cell[14], forecasts: Cell[14], database: Cell[14] },  // Cell = 'ok'|'down'|'none'
+  model_updates: [{ date, ok, duration_min: int|null }]  // newest first, <= 14, one per UTC date
+}
+```
+**Snapshot and caching.** The server builds one snapshot at most every 15 s (in-process cache, single-flight: concurrent misses share one set of queries) and serves the same body to everyone. Traffic does not change database load. A per-IP rate limiter (120/min) stays in front; `429` has a fixed body and neither it nor any other response carries `RateLimit-*` or `Retry-After` headers. 503 (same shape, `database.state:'down'`, nothing about the cause) when the queries fail; the failure is cached for the same 15 s.
+
+**Component thresholds.**
+| Component | Source | operational | degraded | down |
+|---|---|---|---|---|
+| website | 75th percentile of API request durations over 5 min, plus the sampler's DB probe | p75 < 1 s (`fast`) | p75 >= 1 s (`slow`) | not reported by the server itself; the page shows "cannot reach the service" when the request fails |
+| stations | collector `feed_state.last_ok_at` | <= 5 min | <= 15 min | older, or never |
+| forecasts | last finished predict run | <= 30 min and the run succeeded | <= 90 min, or the last run failed | older, or never |
+| models | last successful train run | <= 36 h, nothing stalled or failed since | <= 96 h, a stalled run, or the last finished run failed after the last success | older than 96 h |
+| database | the snapshot queries | answered | n/a | failed |
+`overall` is `down` when the database is down, `degraded` when anything else is not operational, else `operational`.
+
+**Model update progress.** `running` is set when the newest train row is unfinished, started under 12 h ago, and has written progress within 10 minutes (a quieter run counts as stalled: `running` is `null` and `models.state` is `degraded`). `percent`/`eta_min` come from the most recent successful run's phase offsets: the current run is anchored at its latest finished phase the reference also has and interpolated by wall time up to the reference's next boundary. `percent` is a whole number capped at 97, `eta_min` is whole minutes; both are `null` with no reference. The internal phases map onto the four public stages in `apps/api/src/status/stage.ts` (the map and the phase names stay server-side and are not in `@dockcast/shared`): `labels`..`feature_build` -> preparing data; `feature_matrices`, `calibration` -> training; `val_scoring`, `release` -> evaluating; `metrics_online` and the wrap-up after it -> publishing.
+
+**Release.** `deployed_ago` is the age of the running release, coarsened on the server (minutes under 2 h, hours under 2 days, else days). The start time is the `DEPLOYED_AT` env var (ISO 8601) if set and valid, else API process start (a redeploy recreates the container). No git sha or version string is exposed anywhere.
+
+**Uptime and history.** Computed from `status_samples` (migration 0007): one row per component per minute, `ts` truncated to the minute, primary key `(component, ts)`. Components: `website`, `stations`, `forecasts`, `database`; `ok` means the state was not `down` (website and database are `ok` whenever the sampler could read the database). Uptime is `ok samples / minutes that should have a sample` for the `website` component over 7 and 30 days, counted from the first sample if it is newer than the window, floored to one decimal, `null` under 10 minutes of history. A minute without a sample counts as down. A history cell is `ok` when at least 99% of that UTC day's minutes (since the first sample) have an ok sample, `down` otherwise, `none` before any data. Days are UTC dates. Retention: hypertable with `add_retention_policy('status_samples', INTERVAL '90 days')`.
+
+**Sampler.** `apps/api/src/status/sampler.ts`, started from `index.ts` next to the alert scheduler. It lives in the API process because the API is what `website` means, and it observes the database as users do; the collector can only vouch for itself. Multiple API instances are safe without leader election: each may sample, and the primary key plus `ON CONFLICT DO NOTHING` keeps one row per component per minute.
+
+**Model updates list.** One row per UTC date of the run's start: a date is `ok` if any run that day succeeded (its duration), else the newest failure. Unfinished rows (crashed attempts; a retry is a separate row) are not listed, so retries cannot be counted from the page. Durations are whole minutes.
+
+### Public status page threat model
+Anyone can read `/status`, including someone preparing an attack, so the page shows what a user would want to know and withholds what only helps reconnaissance.
+
+Shown: up/degraded/down for each part of the app, how fresh the data is in whole minutes, a fast/slow latency bucket, the UTC date of the last model update and the dates/results/durations (whole minutes) of the last 14, progress of a running update (whole percent, one of four generic stage names, ETA in minutes), the age of the running release, 7 and 30 day uptime, and a 14-day up/down strip per component. Each is something a user notices or would otherwise report as "is it down?".
+
+Withheld, with the reason:
+- Memory use, limits, peaks, retry or attempt counts: they reveal capacity, how close the trainer runs to its limit, and when it is fragile (a window to cause or exploit an OOM).
+- Exact git sha, version or build id: lets an attacker look up known vulnerabilities for the exact build; the release is shown only as a coarse age.
+- Internal phase names and the phase list: they describe the training pipeline and its libraries. The page gets four generic stages.
+- Exact schedules and clock times: the nightly run time tells an attacker when the box is busy and when nobody is watching. The page says nothing about when; dates carry no time of day and `generated_at` is not sent.
+- Host, container and OS names, database engine or version, proxy or tunnel details: stack fingerprinting. Component names are product terms ("station data", not a service or container name).
+- Error text, stack traces, `worker_runs.error`: the route never selects it; the progress JSON is cut down in SQL to phase names and timestamps, and re-validated against an allowlist in code.
+- Rate-limit numbers: the limiter sends no `RateLimit-*`/`Retry-After` headers and the 429 body is fixed.
+- Per-request cost: one cached snapshot every 15 s serves every caller, so the endpoint cannot be used to hammer the database.
+
+Controls: strict zod schema (unknown keys fail validation in dev/test and in the API tests); a test scans the serialized body and the headers for banned patterns (`apps/api/test/helpers/bannedContent.ts`); hostile strings seeded into `error`, `summary` and phase names must not appear; `X-Powered-By` is disabled app-wide and no `Server` header is set (the Caddy `-Server` also strips the proxy's); `/health` no longer reports a version; malformed bodies get a fixed 400/413 and unhandled errors a fixed 500 with no stack in any mode. Not covered: what an attacker can infer from uptime gaps (a restart shows as a missing minute) and from the existence of the nightly update itself.
 
 ## 2. Cities & stations (public)
 

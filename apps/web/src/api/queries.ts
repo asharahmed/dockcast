@@ -19,6 +19,7 @@ import type {
   AuthProvidersResponse,
   AuthIdentitiesResponse,
   HealthResponse,
+  StatusResponse,
   LoginRequest,
   RegisterRequest,
   TripResponse,
@@ -47,6 +48,7 @@ export const queryKeys = {
   authProviders: ['auth-providers'] as const,
   authIdentities: ['auth-identities'] as const,
   health: ['health'] as const,
+  status: ['status'] as const,
   trip: (origin: number, dest: number, departAtMinute: number | null, rideMinutes: number | null) =>
     ['trip', origin, dest, departAtMinute, rideMinutes] as const,
   model: (slug: string) => ['model', slug] as const,
@@ -395,5 +397,23 @@ export function useUnsubscribePush() {
 export function useTestPush() {
   return useMutation({
     mutationFn: () => apiPost<PushTestResponse>('/push/test', undefined, schemas.pushTestResponse),
+  });
+}
+
+/** Polling cadence for `GET /status`: the server refreshes its snapshot every 15 s, so never poll faster. */
+export const STATUS_POLL_ACTIVE_MS = 15_000;
+export const STATUS_POLL_IDLE_MS = 60_000;
+
+/**
+ * `GET /status`. Refetches every 15 s while a model update is running and every 60 s otherwise;
+ * react-query pauses interval refetches while the tab is hidden and refetches on refocus.
+ */
+export function useStatus() {
+  return useQuery({
+    queryKey: queryKeys.status,
+    queryFn: () => apiGet<StatusResponse>('/status', schemas.statusResponse),
+    refetchInterval: (query) =>
+      query.state.data?.models.running ? STATUS_POLL_ACTIVE_MS : STATUS_POLL_IDLE_MS,
+    refetchIntervalInBackground: false,
   });
 }

@@ -6,11 +6,21 @@
 import { rateLimit } from 'express-rate-limit';
 import type { RequestHandler } from 'express';
 
-export function createRateLimiter(windowMs: number, limit: number): RequestHandler {
+export interface RateLimiterOptions {
+  /** Send `RateLimit-*` / `Retry-After` headers (default true). Public endpoints turn this off. */
+  headers?: boolean;
+}
+
+export function createRateLimiter(
+  windowMs: number,
+  limit: number,
+  opts: RateLimiterOptions = {},
+): RequestHandler {
+  const headers = opts.headers ?? true;
   return rateLimit({
     windowMs,
     limit,
-    standardHeaders: true,
+    standardHeaders: headers,
     legacyHeaders: false,
     handler: (_req, res) => {
       res.status(429).json({

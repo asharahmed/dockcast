@@ -357,6 +357,18 @@ into a different DockCast account."
 ### 4.9 `/privacy` — Privacy policy (public)
 Static prose page (`PrivacyPage`, max 68 ch), dated by `PRIVACY_UPDATED`. It must describe what the code does: what is collected without and with an account, the session cookie and local-storage keys, on-device caches, the third parties that see data (Cloudflare, OpenFreeMap, Google/Apple sign-in, browser push services), storage location and retention, account deletion, and contact (ashar@aahmed.ca by default, overridable with `VITE_CONTACT_EMAIL`, plus GitHub issues). Any change to data handling updates this page and its date in the same change. Linked from the footer, the About page ("Your data") and under the sign-in/register forms.
 
+### 4.10 `/status` — App status (public)
+`StatusPage` (lazy route, `styles/status.css`), linked from the footer and the About page. It shows the status of the whole app, including the production instance, and nothing an attacker could use for reconnaissance (api.md "Public status page threat model"). Deliberately terminal-styled and not themed: near-black background, monospace, `ui-monospace` stack at 13/14 px. h1 is the prompt line `$ dockcast status` plus a blinking block cursor. Sections render like CLI output under `# components`, `# model update`, `# production`, `# last 14 days`, `# recent model updates`:
+- **Overall line**: `● all systems operational` / `degraded performance` / `service disruption`, dot green/amber/red.
+- **components**: one ● line each for `website` (state, `fast|slow responses`), `station data` and `forecasts` (state, `updated N min ago`), `model updates` (state, `last Oct 27`) and `database` (state only). Names are product terms, never service or host names.
+- **model update**: only while an update is running. Animated bar (`█` plus eighth-block tail `▏▎▍▌▋▊▉`, `░` padding; 40 cells, 24 under 520 px), whole percent (`--%` with no reference), a braille spinner, one of four stage labels (`preparing data`, `training`, `evaluating`, `publishing`) and `about N min left`.
+- **production**: `release deployed 3 days ago` (coarse age, no version or sha) and `uptime 7 days 99.9% · 30 days 99.7%`.
+- **last 14 days**: one row per component of `✔` (up), `✘` (downtime), `·` (no data), oldest to newest, UTC days. Each row is `role="img"` with a text summary; the glyphs are `aria-hidden`.
+- **recent model updates**: ASCII table `date | ok | took` (date as `Oct 27`, duration in whole minutes), scrolling inside its own box so the page never scrolls horizontally on a phone.
+- **Not shown**: memory, retries, internal phase names, schedule or any clock time, host/OS/database details, error text. The page has no "updated at" time; it only says polling refreshes.
+- **Data**: `useStatus` (`GET /status`) polls every 15 s while `models.running` is set and every 60 s otherwise (the server refreshes its snapshot every 15 s, so faster polling gains nothing). Interval polling pauses while the tab is hidden. A failed first load says `cannot reach the service`; a failed refresh keeps the last data and says so.
+- **Accessibility**: a visually hidden `role="status" aria-live="polite"` region speaks only when its text changes (`All systems operational. Model update: training.`), never per poll or per percent. Under `prefers-reduced-motion` the spinner becomes a static `*` and the cursor stops blinking. The bar is `aria-hidden`; the same information is in the text lines.
+
 ## 5. Component contracts (props are exact)
 
 | Component | Props | Behaviour |

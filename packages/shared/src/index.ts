@@ -10,6 +10,7 @@ export * from './time.js';
 
 export * from './api/errors.js';
 export * from './api/system.js';
+export * from './api/status.js';
 export * from './api/cities.js';
 export * from './api/stations.js';
 export * from './api/model.js';
@@ -21,6 +22,7 @@ export * from './api/push.js';
 import { legKindSchema, verdictSchema } from './forecast.js';
 import { errorResponseSchema } from './api/errors.js';
 import { healthResponseSchema } from './api/system.js';
+import { statusResponseSchema } from './api/status.js';
 import { citySchema, cityListResponseSchema } from './api/cities.js';
 import {
   stationRefSchema,
@@ -97,6 +99,7 @@ export const schemas = {
 
   errorResponse: errorResponseSchema,
   healthResponse: healthResponseSchema,
+  statusResponse: statusResponseSchema,
 
   city: citySchema,
   cityListResponse: cityListResponseSchema,

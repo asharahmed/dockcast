@@ -31,6 +31,7 @@ describe('routes', () => {
     ['/about', 'About DockCast'],
     ['/trip', 'Trip check'],
     ['/model', 'How good are the forecasts?'],
+    ['/status', '$ dockcast status'],
   ])('%s renders its h1 "%s"', async (path, heading) => {
     renderApp(path);
     // /model and /trip are React.lazy route chunks (recharts); give them longer than the default

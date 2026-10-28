@@ -4,6 +4,7 @@
 export type {
   ErrorResponse,
   HealthResponse,
+  StatusResponse,
   City,
   CityListResponse,
   StationRef,

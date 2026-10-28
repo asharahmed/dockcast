@@ -11,6 +11,7 @@ import { requireFetchHeader } from './middleware/requireFetchHeader.js';
 import { createSessionMiddleware } from './middleware/session.js';
 import { apiNotFoundHandler, errorHandler } from './middleware/errors.js';
 import { healthRouter } from './routes/health.js';
+import { statusRouter } from './routes/status.js';
 import { citiesRouter } from './routes/cities.js';
 import { stationsRouter } from './routes/stations.js';
 import { tripRouter } from './routes/trip.js';
@@ -20,6 +21,7 @@ import { commutesRouter } from './routes/commutes.js';
 import { pushRouter } from './routes/push.js';
 import { createWebPushTransport } from './alerts/sender.js';
 import { mountStatic } from './static.js';
+import { LatencyTracker, latencyMiddleware } from './status/latency.js';
 
 export type { AppDeps, RouteDeps } from './deps.js';
 
@@ -37,7 +39,9 @@ export function createApp(deps: AppDeps): Express {
   app.set('trust proxy', deps.config.trustProxy);
   app.disable('x-powered-by');
 
+  const latency = deps.latency ?? new LatencyTracker();
   app.use(requestId);
+  app.use(latencyMiddleware(latency));
   app.use(
     pinoHttp({
       logger: deps.logger,
@@ -85,6 +89,7 @@ export function createApp(deps: AppDeps): Express {
   app.use(createSessionMiddleware(deps.pool, deps.config));
 
   app.use('/api/v1', healthRouter(routeDeps));
+  app.use('/api/v1', statusRouter(routeDeps, { deployedAt: deps.deployedAt ?? new Date(), latency }));
   app.use('/api/v1', citiesRouter(routeDeps));
   app.use('/api/v1', stationsRouter(routeDeps));
   app.use('/api/v1', tripRouter(routeDeps));

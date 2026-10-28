@@ -170,3 +170,11 @@ def test_low_anon_peak_leaves_limit_alone(harness) -> None:
     assert api.updates == []
     assert not state_file.exists()
     assert "peak anon 2048 MiB = 33% of the 6144 MiB limit (cgroup peak incl. cache 6144 MiB)" in res.stderr
+
+
+def test_attempt_numbers_are_exported_to_the_trainer(harness) -> None:
+    _api, _cgroup, _state_file, run = harness
+    script = _OOM_ONCE.replace('echo "trained $*"', 'echo "attempt=$TRAIN_ATTEMPT/$TRAIN_MAX_ATTEMPTS"')
+    res = run(script, {"TRAIN_MAX_ATTEMPTS": "4"})
+    assert res.returncode == 0, res.stderr
+    assert "attempt=2/4" in res.stdout

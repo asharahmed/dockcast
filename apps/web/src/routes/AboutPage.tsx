@@ -74,6 +74,13 @@ export default function AboutPage() {
           </Link>{' '}
           has the details.
         </p>
+        <p className="text-ink-2">
+          Curious how DockCast is doing right now?{' '}
+          <Link to="/status" className="text-signal underline underline-offset-4">
+            The status page
+          </Link>{' '}
+          shows what is running and how it has held up lately.
+        </p>
       </section>
 
       <section className="flex flex-col gap-3">
